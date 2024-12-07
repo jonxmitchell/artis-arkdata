@@ -20,12 +20,18 @@ pub async fn scrape_creatures(
     let cell_selector = Selector::parse("td").unwrap();
     let link_selector = Selector::parse("a").unwrap();
 
-    // Find all headers and tables
-    let mut current_mod = String::from("Ark");
-    let mut total_processed = 0;
+    // First pass: Count total rows across all tables
+    let tables: Vec<_> = document.select(&table_selector).collect();
+    let total_rows = tables
+        .iter()
+        .map(|table| table.select(&row_selector).count().saturating_sub(1)) // Subtract 1 for header
+        .sum::<usize>();
 
-    let tables = document.select(&table_selector);
-    for table in tables {
+    // Second pass: Process the creatures
+    let mut current_mod = String::from("Ark");
+    let mut processed_rows = 0;
+
+    for table in &tables {
         // Look for the preceding h3 header
         let mut current_element = table.prev_sibling_element();
         while let Some(element) = current_element {
@@ -44,20 +50,28 @@ pub async fn scrape_creatures(
             let cells: Vec<_> = row.select(&cell_selector).collect();
 
             if cells.len() >= 4 {
-                total_processed += 1;
-                let progress = (total_processed as f32) * 100.0;
+                processed_rows += 1;
+                let progress = (processed_rows as f32 / total_rows as f32) * 100.0;
 
                 ScrapingProgress::new(
                     "creatures",
                     progress,
-                    &format!("Processing creature {}", total_processed),
+                    &format!(
+                        "Processing creature {} of {} ({})",
+                        processed_rows, total_rows, current_mod
+                    ),
                 )
                 .emit(window);
 
-                // Get display name from first column's link for readability
+                // Get display name from the title attribute of the last link in the first cell
                 let display_name = if let Some(name_cell) = cells.first() {
-                    if let Some(link) = name_cell.select(&link_selector).next() {
-                        clean_name(&link.text().collect::<String>())
+                    let links: Vec<_> = name_cell.select(&link_selector).collect();
+                    if let Some(last_link) = links.last() {
+                        if let Some(title) = last_link.value().attr("title") {
+                            clean_name(title)
+                        } else {
+                            clean_name(&last_link.text().collect::<String>())
+                        }
                     } else {
                         clean_name(&name_cell.text().collect::<String>())
                     }
@@ -83,13 +97,13 @@ pub async fn scrape_creatures(
                         .unwrap_or_default();
 
                     if let Some(blueprint) = extract_blueprint(&blueprint_text) {
-                        let key = format_title(&name);
+                        let key = format_title(&name); // Use dino tag for the key
 
                         creatures.insert(
                             key.clone(),
                             Creature {
                                 type_name: "creature".to_string(),
-                                name, // Using the dino tag name
+                                name: display_name, // Use the display name here
                                 mod_name: current_mod.clone(),
                                 entity_id,
                                 blueprint,
@@ -100,6 +114,14 @@ pub async fn scrape_creatures(
             }
         }
     }
+
+    // Final completion message
+    ScrapingProgress::new(
+        "creatures",
+        100.0,
+        &format!("Completed processing {} creatures", creatures.len()),
+    )
+    .emit(window);
 
     Ok(())
 }
