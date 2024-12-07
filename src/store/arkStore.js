@@ -5,7 +5,7 @@ import { listen } from '@tauri-apps/api/event';
 const MAX_HISTORY_ENTRIES = 50;
 
 const useArkStore = create((set, get) => ({
-  // Core data
+  // Core data state
   arkData: {
     creatures: {},
     items: {},
@@ -32,18 +32,33 @@ const useArkStore = create((set, get) => ({
   lastAction: null,
   unsavedChanges: false,
 
+  // Comparison state
+  compareData: null,
+  showComparison: false,
+
   // Initialize scraping progress listener
   initScrapingListener: async () => {
+    // Ensure we only initialize the listener once
+    if (get().listenerInitialized) return;
+  
     await listen('scraping-progress', (event) => {
-      set({ scrapingProgress: event.payload });
+      const progress = event.payload;
+      set(state => ({
+        scrapingProgress: {
+          ...state.scrapingProgress,
+          ...progress
+        }
+      }));
     });
+  
+    set({ listenerInitialized: true });
   },
 
   // History management functions
   pushToHistory: (description) => {
     set(state => {
       const newEntry = {
-        data: JSON.parse(JSON.stringify(state.arkData)), // Deep clone to prevent reference issues
+        data: JSON.parse(JSON.stringify(state.arkData)), // Deep clone
         version: state.currentVersion + 1,
         timestamp: Date.now(),
         description
@@ -209,18 +224,14 @@ const useArkStore = create((set, get) => ({
           message: 'Starting data collection...'
         }
       });
-
+  
+      // Initialize the progress listener if not already done
+      const { initScrapingListener } = get();
+      await initScrapingListener();
+  
       const scrapedData = await invoke('start_scraping');
-      const mergedData = await invoke('merge_scraped_data', {
-        existingData: get().arkData,
-        scrapedData
-      });
-
-      const { pushToHistory } = get();
-      pushToHistory('Updated data from web scraping');
-
+      
       set({ 
-        arkData: mergedData, 
         scraping: false,
         scrapingProgress: {
           stage: 'complete',
@@ -228,8 +239,9 @@ const useArkStore = create((set, get) => ({
           message: 'Data collection complete'
         }
       });
-
-      await get().saveData();
+  
+      return scrapedData; // Return the scraped data instead of automatically merging
+  
     } catch (error) {
       set({ 
         error: error.toString(), 
@@ -240,8 +252,72 @@ const useArkStore = create((set, get) => ({
           message: error.toString()
         }
       });
+      return null;
     }
+  },
+
+  // Comparison operations
+  startComparison: (newData) => {
+    const { arkData } = get();
+    set({ 
+      compareData: newData,
+      showComparison: true 
+    });
+  },
+
+  cancelComparison: () => {
+    set({ 
+      compareData: null,
+      showComparison: false 
+    });
+  },
+
+  applyComparison: () => {
+    const { compareData, pushToHistory } = get();
+    if (!compareData) return;
+
+    set(state => ({
+      arkData: compareData,
+      compareData: null,
+      showComparison: false
+    }));
+
+    pushToHistory('Applied data comparison changes');
+  },
+
+  // Bulk operations
+  bulkAddEntries: (category, entries) => {
+    const { pushToHistory } = get();
+    
+    set(state => ({
+      arkData: {
+        ...state.arkData,
+        [category]: {
+          ...state.arkData[category],
+          ...entries,
+        },
+      },
+    }));
+
+    pushToHistory(`Bulk add to ${category}: ${Object.keys(entries).length} entries`);
+  },
+
+  bulkRemoveEntries: (category, keys) => {
+    const { pushToHistory } = get();
+    
+    set(state => {
+      const newCategory = { ...state.arkData[category] };
+      keys.forEach(key => delete newCategory[key]);
+      return {
+        arkData: {
+          ...state.arkData, 
+          [category]: newCategory,
+        },
+      };
+    });
+
+    pushToHistory(`Bulk remove from ${category}: ${keys.length} entries`);
   }
 }));
 
-export default useArkStore;
+export default useArkStore; 

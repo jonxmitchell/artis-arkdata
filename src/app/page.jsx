@@ -10,7 +10,6 @@ import EngramsTab from "@/components/EngramsTab";
 import BeaconsTab from "@/components/BeaconsTab";
 import ColorsTab from "@/components/ColorsTab";
 import Header from "@/components/Header";
-import HistoryToolbar from "@/components/HistoryToolbar";
 import ScrapingProgress from "@/components/ScrapingProgress";
 
 export default function Home() {
@@ -32,7 +31,6 @@ export default function Home() {
   return (
     <div className="flex flex-col w-full min-h-screen p-4 gap-4">
       <Header />
-      <HistoryToolbar />
 
       {scraping && (
         <Card>
