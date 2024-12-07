@@ -26,10 +26,16 @@ pub fn extract_blueprint(text: &str) -> Option<String> {
 }
 
 pub fn clean_name(name: &str) -> String {
-    name.trim()
+    // Split by parentheses and take the first part
+    let base_name = name.split('(').next().unwrap_or(name);
+
+    base_name
+        .trim()
         .replace('\n', "")
         .replace('\r', "")
         .replace("  ", " ")
+        .trim()
+        .to_string()
 }
 
 pub fn extract_mod_name(blueprint: &str) -> String {

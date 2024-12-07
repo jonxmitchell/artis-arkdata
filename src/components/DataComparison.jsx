@@ -18,7 +18,83 @@ import {
 } from "lucide-react";
 import { compareData, getChangeStats } from "@/utils/compareData";
 
-// ... ChangeDisplay component stays the same ...
+const ChangeDisplay = ({ type, item, changes }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  const getIcon = () => {
+    switch (type) {
+      case "added":
+        return <Plus className="w-4 h-4 text-success" />;
+      case "removed":
+        return <Minus className="w-4 h-4 text-danger" />;
+      case "modified":
+        return <RefreshCw className="w-4 h-4 text-warning" />;
+      default:
+        return null;
+    }
+  };
+
+  const getBackgroundColor = () => {
+    switch (type) {
+      case "added":
+        return "bg-success-50";
+      case "removed":
+        return "bg-danger-50";
+      case "modified":
+        return "bg-warning-50";
+      default:
+        return "";
+    }
+  };
+
+  return (
+    <Card className={`w-full ${getBackgroundColor()}`}>
+      <CardBody>
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              {getIcon()}
+              <span className="font-bold">{item.name}</span>
+            </div>
+            {changes && (
+              <button
+                className="p-1 hover:bg-default-100 rounded-full"
+                onClick={() => setExpanded(!expanded)}
+              >
+                {expanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </button>
+            )}
+          </div>
+          {expanded && changes && (
+            <div className="ml-6 flex flex-col gap-1">
+              {Object.entries(changes).map(([field, change]) => (
+                <div key={field} className="text-sm">
+                  <span className="font-medium">{field}: </span>
+                  {change.type === "modified" ? (
+                    <>
+                      <span className="line-through text-danger">
+                        {change.oldValue}
+                      </span>{" "}
+                      → <span className="text-success">{change.newValue}</span>
+                    </>
+                  ) : change.type === "added" ? (
+                    <span className="text-success">Added: {change.value}</span>
+                  ) : (
+                    <span className="text-danger">Removed: {change.value}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </CardBody>
+    </Card>
+  );
+};
 
 const DataComparison = ({ oldData, newData }) => {
   const [selectedCategory, setSelectedCategory] = useState("creatures");
