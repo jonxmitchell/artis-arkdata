@@ -1,0 +1,108 @@
+{
+	"$schema": "../node_modules/@tauri-apps/cli/schema.json",
+	"build": {
+		"beforeBuildCommand": "npm run build",
+		"beforeDevCommand": "npm run dev",
+		"devPath": "http://localhost:3000",
+		"distDir": "../out"
+	},
+	"package": {
+		"productName": "tauri-nextjs-boilerplate",
+		"version": "0.0.1"
+	},
+	"tauri": {
+		"allowlist": {
+			"all": false,
+			"http": {
+			  "all": true,
+			  "request": true
+			},
+			"dialog": {
+			  "all": false,
+			  "ask": false,
+			  "confirm": false,
+			  "message": false,
+			  "open": true,
+			  "save": true
+			},
+			"clipboard": {
+			  "all": true,
+			  "writeText": true
+			},
+			"window": {
+			  "all": true
+			},
+			"fs": {
+			  "readFile": true,
+			  "writeFile": true,
+			  "readDir": true,
+			  "copyFile": true,
+			  "createDir": true,
+			  "removeDir": true,
+			  "removeFile": true,
+			  "renameFile": true,
+			  "exists": true,
+			  "scope": ["$APPDATA/*", "$APPDATA/**", "explorer", "open", "xdg-open", "**"]
+			},
+			"shell": {
+			  "all": true,
+			  "execute": true,
+			  "sidecar": true,
+			  "open": true
+			},
+			"path": {
+			  "all": true
+			}
+		  },
+		"bundle": {
+			"active": true,
+			"category": "DeveloperTool",
+			"copyright": "",
+			"deb": {
+				"depends": []
+			},
+			"externalBin": [],
+			"icon": ["icons/icon.ico"],
+			"identifier": "com.artis-arkdata",
+			"longDescription": "",
+			"macOS": {
+				"entitlements": null,
+				"exceptionDomain": "",
+				"frameworks": [],
+				"providerShortName": null,
+				"signingIdentity": null
+			},
+
+			"resources": [],
+			"shortDescription": "",
+			"targets": "all",
+			"windows": {
+				"certificateThumbprint": null,
+				"digestAlgorithm": "sha256",
+				"timestampUrl": ""
+			}
+		},
+		"security": {
+			"csp": null
+		},
+		"updater": {
+			"active": false
+		},
+		"windows": [
+			{
+				"title": "Art's Arkdata (v0.0.1)",
+				"width": 1300,
+				"height": 900,
+				"minWidth": 900,
+				"minHeight": 600,
+				"resizable": true,
+				"fullscreen": false,
+				"visible": true,
+				"decorations": true,
+				"transparent": false,
+				"center": true,
+				"theme": "Dark"
+			}
+		]
+	}
+}
