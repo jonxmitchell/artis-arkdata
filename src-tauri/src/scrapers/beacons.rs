@@ -10,7 +10,7 @@ pub async fn scrape_beacons(
     beacons: &mut HashMap<String, Beacon>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let client = ScraperClient::new();
-    let url = format!("{}/wiki/Beacon", BASE_URL);
+    let url = format!("{}/wiki/Beacon_IDs", BASE_URL);
     let html = client.fetch_page(&url).await?;
     let document = Html::parse_document(&html);
 
