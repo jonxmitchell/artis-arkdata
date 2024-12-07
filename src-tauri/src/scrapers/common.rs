@@ -1,22 +1,64 @@
 use regex::Regex;
-use reqwest;
+use reqwest::{Client, ClientBuilder};
 use std::sync::Arc;
+use std::time::Duration;
 
 pub const BASE_URL: &str = "https://ark.wiki.gg";
 
 pub struct ScraperClient {
-    client: Arc<reqwest::Client>,
+    client: Arc<Client>,
 }
 
 impl ScraperClient {
     pub fn new() -> Self {
+        let client = ClientBuilder::new()
+            .timeout(Duration::from_secs(30))
+            .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+            .build()
+            .unwrap();
+
         Self {
-            client: Arc::new(reqwest::Client::new()),
+            client: Arc::new(client),
         }
     }
 
     pub async fn fetch_page(&self, url: &str) -> Result<String, reqwest::Error> {
-        self.client.get(url).send().await?.text().await
+        let mut retries = 3;
+
+        while retries > 0 {
+            match self.client.get(url).send().await {
+                Ok(response) => {
+                    if response.status().is_success() {
+                        match response.text().await {
+                            Ok(text) => return Ok(text),
+                            Err(e) => {
+                                retries -= 1;
+                                if retries == 0 {
+                                    return Err(e);
+                                }
+                            }
+                        }
+                    } else {
+                        retries -= 1;
+                        if retries == 0 {
+                            return Err(response.error_for_status().unwrap_err());
+                        }
+                    }
+                }
+                Err(e) => {
+                    retries -= 1;
+                    if retries == 0 {
+                        return Err(e);
+                    }
+                }
+            }
+
+            if retries > 0 {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        }
+
+        unreachable!("Loop should return before reaching this point")
     }
 }
 
@@ -33,7 +75,7 @@ pub fn clean_name(name: &str) -> String {
         .trim()
         .replace('\n', "")
         .replace('\r', "")
-        .replace("  ", " ")
+        .replace("  ", " ") // Remove double spaces
         .trim()
         .to_string()
 }
@@ -49,6 +91,20 @@ pub fn extract_mod_name(blueprint: &str) -> String {
         "Extinction".to_string()
     } else if blueprint.contains("/Genesis/") {
         "Genesis".to_string()
+    } else if blueprint.contains("/Gen2/") {
+        "Genesis 2".to_string()
+    } else if blueprint.contains("/Valguero/") {
+        "Valguero".to_string()
+    } else if blueprint.contains("/CrystalIsles/") {
+        "Crystal Isles".to_string()
+    } else if blueprint.contains("/Ragnarok/") {
+        "Ragnarok".to_string()
+    } else if blueprint.contains("/TheCenter/") {
+        "The Center".to_string()
+    } else if blueprint.contains("/LostIsland/") {
+        "Lost Island".to_string()
+    } else if blueprint.contains("/Fjordur/") {
+        "Fjordur".to_string()
     } else {
         "Unknown".to_string()
     }
