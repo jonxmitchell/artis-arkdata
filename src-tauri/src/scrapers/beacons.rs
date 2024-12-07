@@ -1,6 +1,6 @@
 use super::{common::*, progress::ScrapingProgress};
 use crate::types::Beacon;
-use scraper::{Html, Selector};
+use scraper::{ElementRef, Html, Selector};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::Window;
@@ -17,27 +17,30 @@ pub async fn scrape_beacons(
     let table_selector = Arc::new(Selector::parse("table.wikitable").unwrap());
     let row_selector = Arc::new(Selector::parse("tr").unwrap());
     let cell_selector = Arc::new(Selector::parse("td").unwrap());
-    let heading_selector = Arc::new(Selector::parse("h2, h3").unwrap());
+    let heading_selector = Arc::new(Selector::parse("h3 .mw-headline").unwrap());
 
     let tables: Vec<_> = document.select(&table_selector).collect();
     let total_tables = tables.len();
-    let headings: Vec<_> = document.select(&heading_selector).collect();
+
+    let mut current_mod = String::from("Ark");
 
     for (table_idx, table) in tables.iter().enumerate() {
+        // Look for the preceding h3 header
+        let mut current_element = table.prev_sibling();
+        while let Some(element) = current_element {
+            if let Some(element_ref) = ElementRef::wrap(element) {
+                if element_ref.value().name() == "h3" {
+                    if let Some(headline) = element_ref.select(&heading_selector).next() {
+                        current_mod = clean_name(&headline.text().collect::<String>());
+                    }
+                    break;
+                }
+            }
+            current_element = element.prev_sibling();
+        }
+
         let rows: Vec<_> = table.select(&row_selector).collect();
         let total_rows = rows.len();
-
-        // Find the appropriate heading for this table by getting the last heading before this table
-        let location = headings
-            .iter()
-            .take_while(|&h| {
-                let h_html = h.html();
-                let table_html = table.html();
-                h_html.as_bytes().as_ptr() < table_html.as_bytes().as_ptr()
-            })
-            .last()
-            .map(|h| clean_name(&h.text().collect::<String>()))
-            .unwrap_or_else(|| "Unknown Location".to_string());
 
         for (row_idx, row) in rows.iter().enumerate().skip(1) {
             let cells: Vec<_> = row.select(&cell_selector).collect();
@@ -51,9 +54,10 @@ pub async fn scrape_beacons(
                     "beacons",
                     progress,
                     &format!(
-                        "Processing beacon {} of {}",
+                        "Processing beacon {} of {} ({})",
                         table_idx * total_rows + row_idx,
-                        total_tables * total_rows
+                        total_tables * total_rows,
+                        current_mod
                     ),
                 )
                 .emit(window);
@@ -62,15 +66,14 @@ pub async fn scrape_beacons(
 
                 if !should_skip_beacon(&name) {
                     let class_name = clean_name(&cells[1].text().collect::<String>());
-                    let full_name = format!("[{}] {}", location, name);
-                    let key = full_name.replace(" ", "_");
+                    let key = name.replace(" ", "_");
 
                     beacons.insert(
                         key,
                         Beacon {
                             type_name: "beacon".to_string(),
-                            name: full_name,
-                            mod_name: "Ark".to_string(),
+                            name,
+                            mod_name: current_mod.clone(),
                             class_name,
                         },
                     );
