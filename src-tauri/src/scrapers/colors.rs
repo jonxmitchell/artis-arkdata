@@ -20,13 +20,18 @@ pub async fn scrape_colors(
     let name_selector = Selector::parse(".color-pill.copy-clipboard .copy-content").unwrap();
     let hex_selector = Selector::parse(".color-id-infos code").unwrap();
 
+    // First pass: Count total items across all lists
+    let total_items: usize = document
+        .select(&list_selector)
+        .map(|list| list.select(&item_selector).count())
+        .sum();
+
     // Find all color lists
     let color_lists = document.select(&list_selector);
     let mut processed_colors = 0;
 
     for list in color_lists {
         let items = list.select(&item_selector);
-        let total_items = list.select(&item_selector).count();
 
         for (_index, item) in items.enumerate() {
             // Extract color ID
@@ -36,12 +41,15 @@ pub async fn scrape_colors(
                 .and_then(|el| el.text().collect::<String>().parse::<i32>().ok())
                 .unwrap_or(-1);
 
-            // Extract color name
-            let name = item
+            // Extract color name and clean it
+            let raw_name = item
                 .select(&name_selector)
                 .next()
                 .map(|el| clean_name(&el.text().collect::<String>()))
                 .unwrap_or_else(|| format!("Color_{}", color_id));
+
+            // Remove "Coloring" from the name
+            let name = raw_name.replace(" Coloring", "");
 
             // Extract hex code (first code element contains sRGB value)
             let hex_code = item
@@ -51,23 +59,23 @@ pub async fn scrape_colors(
                 .unwrap_or_default();
 
             if color_id >= 0 {
-                // Calculate progress
+                processed_colors += 1;
+
+                // Calculate progress based on total items across all lists
                 let progress = (processed_colors as f32 / total_items as f32) * 100.0;
 
                 ScrapingProgress::new(
                     "colors",
-                    progress,
+                    progress.min(100.0), // Ensure progress never exceeds 100%
                     &format!(
                         "Processing color {} of {} ({})",
-                        processed_colors + 1,
-                        total_items,
-                        name
+                        processed_colors, total_items, name
                     ),
                 )
                 .emit(window);
 
                 // Create the color entry
-                let key = name.clone();
+                let key = name.replace(' ', "_").replace('-', "_");
                 colors.insert(
                     key,
                     Color {
@@ -77,8 +85,6 @@ pub async fn scrape_colors(
                         hex_code,
                     },
                 );
-
-                processed_colors += 1;
             }
         }
     }
