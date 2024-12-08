@@ -1,3 +1,4 @@
+// src-tauri/src/scrapers/engrams.rs
 use super::{common::*, progress::ScrapingProgress};
 use crate::types::Engram;
 use futures::stream::{self, StreamExt};
@@ -11,6 +12,11 @@ pub async fn scrape_engrams(
     engrams: &mut HashMap<String, Engram>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let client = Arc::new(ScraperClient::new());
+
+    // First, fetch the class names
+    let class_names = fetch_class_names(&client).await?;
+
+    // Then fetch the regular engram data
     let url = format!("{}/wiki/Engrams", BASE_URL);
     let html = client.fetch_page(&url).await?;
 
@@ -47,6 +53,7 @@ pub async fn scrape_engrams(
         .map(|(idx, url): (usize, String)| {
             let client = Arc::clone(&client);
             let window = Arc::clone(&window);
+            let class_names = class_names.clone();
 
             async move {
                 let progress = (idx as f32 / total_engrams as f32) * 100.0;
@@ -57,7 +64,7 @@ pub async fn scrape_engrams(
                 )
                 .emit(&window);
 
-                match scrape_single_engram(&client, &url).await {
+                match scrape_single_engram(&client, &url, &class_names).await {
                     Ok(Some((key, engram))) => Some((key, engram)),
                     _ => None,
                 }
@@ -74,9 +81,48 @@ pub async fn scrape_engrams(
     Ok(())
 }
 
+async fn fetch_class_names(
+    client: &ScraperClient,
+) -> Result<HashMap<String, String>, Box<dyn std::error::Error + Send + Sync>> {
+    let url = format!("{}/wiki/Engram_class_names", BASE_URL);
+    let html = client.fetch_page(&url).await?;
+    let document = Html::parse_document(&html);
+
+    let table_selector = Selector::parse("table.wikitable").unwrap();
+    let row_selector = Selector::parse("tr").unwrap();
+    let cell_selector = Selector::parse("td").unwrap();
+    let link_selector = Selector::parse("a").unwrap();
+
+    let mut class_names = HashMap::new();
+
+    if let Some(table) = document.select(&table_selector).next() {
+        for row in table.select(&row_selector).skip(1) {
+            // Skip header row
+            let cells: Vec<_> = row.select(&cell_selector).collect();
+            if cells.len() >= 2 {
+                if let Some(name_cell) = cells.get(0) {
+                    let name = if let Some(link) = name_cell.select(&link_selector).next() {
+                        clean_name(&link.text().collect::<String>())
+                    } else {
+                        clean_name(&name_cell.text().collect::<String>())
+                    };
+
+                    if let Some(class_cell) = cells.get(1) {
+                        let class_name = clean_name(&class_cell.text().collect::<String>());
+                        class_names.insert(name, class_name);
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(class_names)
+}
+
 async fn scrape_single_engram(
     client: &ScraperClient,
     url: &str,
+    class_names: &HashMap<String, String>,
 ) -> Result<Option<(String, Engram)>, Box<dyn std::error::Error + Send + Sync>> {
     let html = client.fetch_page(url).await?;
 
@@ -97,6 +143,11 @@ async fn scrape_single_engram(
                     .unwrap_or_else(|| "Unknown".to_string());
 
                 let key = name.replace(" ", "_");
+                let class_name = class_names
+                    .get(&name)
+                    .cloned()
+                    .unwrap_or_else(|| format!("EngramEntry_{}_C", key));
+
                 return Ok(Some((
                     key,
                     Engram {
@@ -104,6 +155,7 @@ async fn scrape_single_engram(
                         name,
                         mod_name: extract_mod_name(&blueprint),
                         blueprint,
+                        class_name,
                     },
                 )));
             }

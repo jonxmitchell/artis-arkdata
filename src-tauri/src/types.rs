@@ -46,6 +46,7 @@ pub struct Engram {
     pub name: String,
     pub mod_name: String,
     pub blueprint: String,
+    pub class_name: String,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
