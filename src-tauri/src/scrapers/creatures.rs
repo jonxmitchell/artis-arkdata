@@ -1,6 +1,6 @@
 use super::{common::*, progress::ScrapingProgress};
 use crate::types::Creature;
-use scraper::{Element, Html, Selector};
+use scraper::{Html, Selector};
 use std::collections::HashMap;
 use tauri::Window;
 
@@ -33,15 +33,19 @@ pub async fn scrape_creatures(
 
     for table in &tables {
         // Look for the preceding h3 header
-        let mut current_element = table.prev_sibling_element();
+        let mut current_element = table.prev_sibling();
         while let Some(element) = current_element {
-            if element.value().name() == "h3" {
-                if let Some(headline) = element.select(&header_selector).next() {
-                    current_mod = extract_mod_from_header(&headline.text().collect::<String>());
+            if let Some(element_ref) = element.value().as_element() {
+                if element_ref.name() == "h3" {
+                    if let Some(headline) = scraper::ElementRef::wrap(element)
+                        .and_then(|el| el.select(&header_selector).next())
+                    {
+                        current_mod = extract_mod_from_header(&headline.text().collect::<String>());
+                    }
+                    break;
                 }
-                break;
             }
-            current_element = element.prev_sibling_element();
+            current_element = element.prev_sibling();
         }
 
         // Process table rows
@@ -79,13 +83,6 @@ pub async fn scrape_creatures(
                     continue;
                 };
 
-                // Get dino tag name from third column
-                let name = if cells.len() > 2 {
-                    clean_name(&cells[2].text().collect::<String>())
-                } else {
-                    continue;
-                };
-
                 if !should_skip_creature(&display_name) {
                     // Extract entity ID from fourth column
                     let entity_id = clean_name(&cells[3].text().collect::<String>());
@@ -97,13 +94,14 @@ pub async fn scrape_creatures(
                         .unwrap_or_default();
 
                     if let Some(blueprint) = extract_blueprint(&blueprint_text) {
-                        let key = format_title(&name); // Use dino tag for the key
+                        // Use display name for the key generation
+                        let key = generate_unique_key(&display_name, &blueprint, &current_mod);
 
                         creatures.insert(
                             key.clone(),
                             Creature {
                                 type_name: "creature".to_string(),
-                                name: display_name, // Use the display name here
+                                name: display_name.clone(),
                                 mod_name: current_mod.clone(),
                                 entity_id,
                                 blueprint,
@@ -126,6 +124,14 @@ pub async fn scrape_creatures(
     Ok(())
 }
 
+fn generate_unique_key(name: &str, _blueprint: &str, mod_name: &str) -> String {
+    format!(
+        "{}_{}",
+        mod_name.replace(" ", "_"),
+        name.replace(" ", "_").replace("-", "_")
+    )
+}
+
 fn extract_mod_from_header(header: &str) -> String {
     if header.contains("Scorched Earth") {
         "Scorched Earth".to_string()
@@ -138,14 +144,6 @@ fn extract_mod_from_header(header: &str) -> String {
     } else {
         "Ark".to_string()
     }
-}
-
-fn format_title(title: &str) -> String {
-    title
-        .replace(" ", "_")
-        .replace("(", "")
-        .replace(")", "")
-        .replace("\"", "")
 }
 
 fn should_skip_creature(name: &str) -> bool {
