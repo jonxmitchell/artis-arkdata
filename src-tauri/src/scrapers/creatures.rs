@@ -154,17 +154,11 @@ fn should_skip_creature(name: &str) -> bool {
         "Retrieve",
         "Escort",
         "Minion",
-        "Gamma",
-        "Beta",
         "Race",
         "Sport",
         "Summoned",
         "Hunt",
         "Mashup",
-        "Ghost",
-        "Zombie",
-        "Bone",
-        "Skeletal",
     ];
     skip_patterns.iter().any(|pattern| name.contains(pattern))
 }
