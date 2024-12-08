@@ -26,7 +26,7 @@ import {
   Upload,
   Archive,
 } from "lucide-react";
-import { createBackup, exportData } from "@/utils/dataUtils";
+import { createBackup, exportData, importData } from "@/utils/dataUtils";
 import useArkStore from "@/store/arkStore";
 import DataComparison from "./DataComparison";
 
@@ -78,18 +78,8 @@ const Header = () => {
 
   const handleImport = async () => {
     try {
-      const filePath = await open({
-        filters: [
-          {
-            name: "JSON",
-            extensions: ["json"],
-          },
-        ],
-      });
-
-      if (filePath) {
-        const content = await readTextFile(filePath);
-        const importedData = JSON.parse(content);
+      const importedData = await importData();
+      if (importedData) {
         startComparison(importedData);
       }
     } catch (error) {

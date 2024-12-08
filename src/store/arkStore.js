@@ -3,7 +3,6 @@ import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
 import { compareData } from '@/utils/compareData';
 
-
 const MAX_HISTORY_ENTRIES = 50;
 
 const useArkStore = create((set, get) => ({
@@ -137,6 +136,14 @@ const useArkStore = create((set, get) => ({
     }));
 
     pushToHistory(`Add ${category} entry: ${key}`);
+  },
+
+  setArkData: (newData) => {
+    const { pushToHistory } = get();
+    set(state => ({
+      arkData: { ...newData },
+    }));
+    pushToHistory('Set new data');
   },
 
   removeEntry: (category, key) => {
@@ -349,9 +356,10 @@ const useArkStore = create((set, get) => ({
 
       // Process each category
       Object.keys(compareData).forEach(category => {
+        newData[category] = { ...newData[category] }; // Create new reference for category
         const categoryPending = pendingChanges[category];
 
-        // Handle additions
+        // Handle additions and modifications
         Object.entries(compareData[category]).forEach(([key, item]) => {
           if (!state.arkData[category][key]) {
             // This is a new item
@@ -366,6 +374,9 @@ const useArkStore = create((set, get) => ({
               // If neither accepted nor rejected, keep the old version
               newData[category][key] = state.arkData[category][key];
             }
+          } else {
+            // Unmodified item
+            newData[category][key] = state.arkData[category][key];
           }
         });
 
