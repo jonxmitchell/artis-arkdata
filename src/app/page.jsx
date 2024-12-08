@@ -1,19 +1,15 @@
 "use client";
 
-// src/app/page.jsx
 import { useState, useEffect } from "react";
-import { Tabs, Tab, Card, CardBody, Spinner } from "@nextui-org/react";
+import { Card, CardBody, Spinner } from "@nextui-org/react";
 import useArkStore from "@/store/arkStore";
-import CreaturesTab from "@/components/CreaturesTab";
-import ItemsTab from "@/components/ItemsTab";
-import EngramsTab from "@/components/EngramsTab";
-import BeaconsTab from "@/components/BeaconsTab";
-import ColorsTab from "@/components/ColorsTab";
 import Header from "@/components/Header";
 import ScrapingProgress from "@/components/ScrapingProgress";
+import DataTabs from "@/components/DataTabs";
 
 export default function Home() {
-  const { loadData, loading, scraping, scrapingProgress } = useArkStore();
+  const { loadData, loading, scraping, scrapingProgress, arkData } =
+    useArkStore();
   const [selected, setSelected] = useState("creatures");
 
   useEffect(() => {
@@ -42,29 +38,11 @@ export default function Home() {
 
       <Card>
         <CardBody>
-          <Tabs
-            selectedKey={selected}
+          <DataTabs
+            arkData={arkData}
+            selected={selected}
             onSelectionChange={setSelected}
-            aria-label="Data Categories"
-            className="w-full"
-            fullWidth={true}
-          >
-            <Tab key="creatures" title="Creatures">
-              <CreaturesTab />
-            </Tab>
-            <Tab key="items" title="Items">
-              <ItemsTab />
-            </Tab>
-            <Tab key="engrams" title="Engrams">
-              <EngramsTab />
-            </Tab>
-            <Tab key="beacons" title="Beacons">
-              <BeaconsTab />
-            </Tab>
-            <Tab key="colors" title="Colors">
-              <ColorsTab />
-            </Tab>
-          </Tabs>
+          />
         </CardBody>
       </Card>
     </div>
