@@ -1,30 +1,91 @@
-// src/components/CreaturesTab.jsx
-import { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { Card, CardBody, Button, Input } from "@nextui-org/react";
 import { Search, Trash2 } from "lucide-react";
 import useArkStore from "@/store/arkStore";
 import DataEntryForm from "./DataEntryForm";
+import VirtualizedDataTable from "./VirtualizedDataTable";
 
 const CreaturesTab = () => {
   const { arkData, addEntry, removeEntry } = useArkStore();
   const [search, setSearch] = useState("");
 
-  const creatures = Object.entries(arkData.creatures || {}).filter(
-    ([key, creature]) =>
-      key.toLowerCase().includes(search.toLowerCase()) ||
-      creature.name.toLowerCase().includes(search.toLowerCase())
+  const handleSubmit = useCallback(
+    (key, data) => {
+      addEntry("creatures", key, {
+        ...data,
+        type_name: "creature",
+      });
+    },
+    [addEntry]
   );
 
-  const handleSubmit = (key, data) => {
-    addEntry("creatures", key, {
-      ...data,
-      type_name: "creature",
-    });
-  };
+  const handleDelete = useCallback(
+    (key) => {
+      removeEntry("creatures", key);
+    },
+    [removeEntry]
+  );
 
-  const handleDelete = (key) => {
-    removeEntry("creatures", key);
-  };
+  const columns = useMemo(
+    () => [
+      {
+        uid: "name",
+        name: "Name",
+        renderCell: (item) => (
+          <div className="flex flex-col">
+            <span className="font-bold">{item.name}</span>
+            <span className="text-sm text-gray-500">Mod: {item.mod_name}</span>
+          </div>
+        ),
+      },
+      {
+        uid: "entity_id",
+        name: "Entity ID",
+        renderCell: (item) => (
+          <div className="max-w-md break-all">
+            <span className="text-sm">{item.entity_id}</span>
+          </div>
+        ),
+      },
+      {
+        uid: "blueprint",
+        name: "Blueprint",
+        renderCell: (item) => (
+          <div className="max-w-md break-all">
+            <span className="text-sm text-gray-500">{item.blueprint}</span>
+          </div>
+        ),
+      },
+      {
+        uid: "actions",
+        name: "Actions",
+        renderCell: (item) => (
+          <Button
+            isIconOnly
+            color="danger"
+            variant="ghost"
+            onClick={() => handleDelete(item.key)}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        ),
+      },
+    ],
+    [handleDelete]
+  );
+
+  const filteredData = useMemo(() => {
+    return Object.entries(arkData.creatures || {})
+      .filter(
+        ([key, creature]) =>
+          key.toLowerCase().includes(search.toLowerCase()) ||
+          creature.name.toLowerCase().includes(search.toLowerCase())
+      )
+      .map(([key, creature]) => ({
+        key,
+        ...creature,
+      }));
+  }, [arkData.creatures, search]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -48,36 +109,11 @@ const CreaturesTab = () => {
               onChange={(e) => setSearch(e.target.value)}
             />
 
-            <div className="flex flex-col gap-2">
-              {creatures.map(([key, creature]) => (
-                <Card key={key} className="w-full">
-                  <CardBody>
-                    <div className="flex justify-between items-center">
-                      <div className="flex flex-col">
-                        <span className="font-bold">{creature.name}</span>
-                        <span className="text-sm text-gray-500">
-                          {creature.blueprint}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          Entity ID: {creature.entity_id}
-                        </span>
-                        <span className="text-sm text-gray-500">
-                          Mod: {creature.mod_name}
-                        </span>
-                      </div>
-                      <Button
-                        isIconOnly
-                        color="danger"
-                        variant="ghost"
-                        onClick={() => handleDelete(key)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </CardBody>
-                </Card>
-              ))}
-            </div>
+            <VirtualizedDataTable
+              data={filteredData}
+              columns={columns}
+              className="w-full"
+            />
           </div>
         </CardBody>
       </Card>
@@ -85,4 +121,4 @@ const CreaturesTab = () => {
   );
 };
 
-export default CreaturesTab;
+export default React.memo(CreaturesTab);

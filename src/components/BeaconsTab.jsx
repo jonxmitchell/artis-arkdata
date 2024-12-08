@@ -1,158 +1,112 @@
-// src/components/BeaconsTab.jsx
-import { useState } from "react";
-import {
-  Card,
-  CardBody,
-  Button,
-  Input,
-  Select,
-  SelectItem,
-} from "@nextui-org/react";
+import React, { useState, useMemo, useCallback } from "react";
+import { Card, CardBody, Button, Input } from "@nextui-org/react";
 import { Search, Trash2 } from "lucide-react";
 import useArkStore from "@/store/arkStore";
 import DataEntryForm from "./DataEntryForm";
-
-const LOCATIONS = [
-  "The Island",
-  "Scorched Earth",
-  "Aberration",
-  "Extinction",
-  "Genesis",
-  "Genesis 2",
-  "The Center",
-  "Ragnarok",
-  "Valguero",
-  "Crystal Isles",
-  "Lost Island",
-  "Fjordur",
-];
+import VirtualizedDataTable from "./VirtualizedDataTable";
 
 const BeaconsTab = () => {
   const { arkData, addEntry, removeEntry } = useArkStore();
   const [search, setSearch] = useState("");
-  const [locationFilter, setLocationFilter] = useState("all");
 
-  const beacons = Object.entries(arkData.beacons || {}).filter(
-    ([key, beacon]) => {
-      const matchesSearch =
-        key.toLowerCase().includes(search.toLowerCase()) ||
-        beacon.name.toLowerCase().includes(search.toLowerCase());
-      const matchesLocation =
-        locationFilter === "all" || beacon.name.includes(`[${locationFilter}]`);
-      return matchesSearch && matchesLocation;
-    }
+  const handleSubmit = useCallback(
+    (key, data) => {
+      addEntry("beacons", key, {
+        type_name: "beacon",
+        name: data.name,
+        mod_name: "Ark",
+        class_name: data.class_name,
+      });
+    },
+    [addEntry]
   );
 
-  // Group beacons by location
-  const groupedBeacons = beacons.reduce((acc, [key, beacon]) => {
-    const location = beacon.name.match(/\[(.*?)\]/)?.[1] || "Other";
-    if (!acc[location]) {
-      acc[location] = [];
-    }
-    acc[location].push([key, beacon]);
-    return acc;
-  }, {});
+  const handleDelete = useCallback(
+    (key) => {
+      removeEntry("beacons", key);
+    },
+    [removeEntry]
+  );
 
-  const handleSubmit = (key, data) => {
-    const location = data.location || "The Island";
-    const name = `[${location}] ${data.name}`;
-    addEntry("beacons", key, {
-      type_name: "beacon",
-      name,
-      mod_name: "Ark",
-      class_name: data.class_name,
-    });
-  };
+  const columns = useMemo(
+    () => [
+      {
+        uid: "name",
+        name: "Name",
+        renderCell: (item) => (
+          <div className="flex flex-col">
+            <span className="font-bold">{item.name}</span>
+            <span className="text-sm text-gray-500">Mod: {item.mod_name}</span>
+          </div>
+        ),
+      },
+      {
+        uid: "class_name",
+        name: "Class Name",
+        renderCell: (item) => (
+          <div className="max-w-md break-all">
+            <span className="text-sm">{item.class_name}</span>
+          </div>
+        ),
+      },
+      {
+        uid: "actions",
+        name: "Actions",
+        renderCell: (item) => (
+          <Button
+            isIconOnly
+            color="danger"
+            variant="ghost"
+            onClick={() => handleDelete(item.key)}
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
+        ),
+      },
+    ],
+    [handleDelete]
+  );
 
-  const handleDelete = (key) => {
-    removeEntry("beacons", key);
-  };
+  const filteredData = useMemo(() => {
+    return Object.entries(arkData.beacons || {})
+      .filter(
+        ([key, beacon]) =>
+          key.toLowerCase().includes(search.toLowerCase()) ||
+          beacon.name.toLowerCase().includes(search.toLowerCase())
+      )
+      .map(([key, beacon]) => ({
+        key,
+        ...beacon,
+      }));
+  }, [arkData.beacons, search]);
 
   return (
     <div className="flex flex-col gap-4">
       <Card>
         <CardBody>
-          <div className="flex flex-col gap-4">
-            <Select
-              label="Location"
-              placeholder="Select location"
-              defaultSelectedKeys={["The Island"]}
-            >
-              {LOCATIONS.map((loc) => (
-                <SelectItem key={loc} value={loc}>
-                  {loc}
-                </SelectItem>
-              ))}
-            </Select>
-            <DataEntryForm
-              category="Beacon"
-              fields={["name", "class_name"]}
-              onSubmit={handleSubmit}
-            />
-          </div>
+          <DataEntryForm
+            category="Beacon"
+            fields={["name", "class_name"]}
+            onSubmit={handleSubmit}
+          />
         </CardBody>
       </Card>
 
       <Card>
         <CardBody>
           <div className="flex flex-col gap-4">
-            <div className="flex gap-4">
-              <Input
-                startContent={<Search className="w-4 h-4" />}
-                placeholder="Search beacons..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="flex-1"
-              />
-              <Select
-                placeholder="Filter by location"
-                value={locationFilter}
-                onChange={(e) => setLocationFilter(e.target.value)}
-                className="w-48"
-              >
-                <SelectItem key="all" value="all">
-                  All Locations
-                </SelectItem>
-                {LOCATIONS.map((loc) => (
-                  <SelectItem key={loc} value={loc}>
-                    {loc}
-                  </SelectItem>
-                ))}
-              </Select>
-            </div>
+            <Input
+              startContent={<Search className="w-4 h-4" />}
+              placeholder="Search beacons..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
 
-            {Object.entries(groupedBeacons).map(
-              ([location, locationBeacons]) => (
-                <div key={location} className="flex flex-col gap-2">
-                  <h3 className="text-lg font-semibold mt-2">{location}</h3>
-                  {locationBeacons.map(([key, beacon]) => (
-                    <Card key={key} className="w-full">
-                      <CardBody>
-                        <div className="flex justify-between items-center">
-                          <div className="flex flex-col">
-                            <span className="font-bold">{beacon.name}</span>
-                            <span className="text-sm text-gray-500">
-                              Class: {beacon.class_name}
-                            </span>
-                            <span className="text-sm text-gray-500">
-                              Mod: {beacon.mod_name}
-                            </span>
-                          </div>
-                          <Button
-                            isIconOnly
-                            color="danger"
-                            variant="ghost"
-                            onClick={() => handleDelete(key)}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </div>
-              )
-            )}
+            <VirtualizedDataTable
+              data={filteredData}
+              columns={columns}
+              className="w-full"
+            />
           </div>
         </CardBody>
       </Card>
@@ -160,4 +114,4 @@ const BeaconsTab = () => {
   );
 };
 
-export default BeaconsTab;
+export default React.memo(BeaconsTab);
