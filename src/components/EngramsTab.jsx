@@ -4,6 +4,7 @@ import { Search, Trash2 } from "lucide-react";
 import useArkStore from "@/store/arkStore";
 import DataEntryForm from "./DataEntryForm";
 import VirtualizedDataTable from "./VirtualizedDataTable";
+import CollapsibleCard from "./CollapsibleCard";
 
 const EngramsTab = () => {
   const { arkData, addEntry, removeEntry } = useArkStore();
@@ -90,15 +91,13 @@ const EngramsTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardBody>
-          <DataEntryForm
-            category="Engram"
-            fields={["name", "blueprint"]}
-            onSubmit={handleSubmit}
-          />
-        </CardBody>
-      </Card>
+      <CollapsibleCard title="Add New Engram">
+        <DataEntryForm
+          category="Engram"
+          fields={["name", "blueprint"]}
+          onSubmit={handleSubmit}
+        />
+      </CollapsibleCard>
 
       <Card>
         <CardBody>

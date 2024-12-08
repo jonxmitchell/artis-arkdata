@@ -4,6 +4,7 @@ import { Search, Trash2 } from "lucide-react";
 import useArkStore from "@/store/arkStore";
 import DataEntryForm from "./DataEntryForm";
 import VirtualizedDataTable from "./VirtualizedDataTable";
+import CollapsibleCard from "./CollapsibleCard";
 
 const BeaconsTab = () => {
   const { arkData, addEntry, removeEntry } = useArkStore();
@@ -82,15 +83,13 @@ const BeaconsTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardBody>
-          <DataEntryForm
-            category="Beacon"
-            fields={["name", "class_name"]}
-            onSubmit={handleSubmit}
-          />
-        </CardBody>
-      </Card>
+      <CollapsibleCard title="Add New Beacon">
+        <DataEntryForm
+          category="Beacon"
+          fields={["name", "class_name"]}
+          onSubmit={handleSubmit}
+        />
+      </CollapsibleCard>
 
       <Card>
         <CardBody>

@@ -4,6 +4,7 @@ import { Search, Trash2 } from "lucide-react";
 import useArkStore from "@/store/arkStore";
 import DataEntryForm from "./DataEntryForm";
 import VirtualizedDataTable from "./VirtualizedDataTable";
+import CollapsibleCard from "./CollapsibleCard";
 
 const ITEM_TYPES = [
   "Resources",
@@ -105,16 +106,14 @@ const ItemsTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardBody>
-          <DataEntryForm
-            category="Item"
-            fields={["name", "class_name", "blueprint"]}
-            types={ITEM_TYPES}
-            onSubmit={handleSubmit}
-          />
-        </CardBody>
-      </Card>
+      <CollapsibleCard title="Add New Item">
+        <DataEntryForm
+          category="Item"
+          fields={["name", "class_name", "blueprint"]}
+          types={ITEM_TYPES}
+          onSubmit={handleSubmit}
+        />
+      </CollapsibleCard>
 
       <Card>
         <CardBody>

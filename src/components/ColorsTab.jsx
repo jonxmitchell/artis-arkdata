@@ -1,9 +1,9 @@
-// src/components/ColorsTab.jsx
 import { useState } from "react";
 import { Card, CardBody, Button, Input } from "@nextui-org/react";
 import { Search, Trash2 } from "lucide-react";
 import useArkStore from "@/store/arkStore";
 import DataEntryForm from "./DataEntryForm";
+import CollapsibleCard from "./CollapsibleCard";
 
 const ColorSwatch = ({ hexCode }) => (
   <div
@@ -43,15 +43,13 @@ const ColorsTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardBody>
-          <DataEntryForm
-            category="Color"
-            fields={["name", "color_id", "hex_code"]}
-            onSubmit={handleSubmit}
-          />
-        </CardBody>
-      </Card>
+      <CollapsibleCard title="Add New Color">
+        <DataEntryForm
+          category="Color"
+          fields={["name", "color_id", "hex_code"]}
+          onSubmit={handleSubmit}
+        />
+      </CollapsibleCard>
 
       <Card>
         <CardBody>

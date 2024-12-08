@@ -4,6 +4,7 @@ import { Search, Trash2 } from "lucide-react";
 import useArkStore from "@/store/arkStore";
 import DataEntryForm from "./DataEntryForm";
 import VirtualizedDataTable from "./VirtualizedDataTable";
+import CollapsibleCard from "./CollapsibleCard";
 
 const CreaturesTab = () => {
   const { arkData, addEntry, removeEntry } = useArkStore();
@@ -89,15 +90,13 @@ const CreaturesTab = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <Card>
-        <CardBody>
-          <DataEntryForm
-            category="Creature"
-            fields={["name", "mod_name", "entity_id", "blueprint"]}
-            onSubmit={handleSubmit}
-          />
-        </CardBody>
-      </Card>
+      <CollapsibleCard title="Add New Creature">
+        <DataEntryForm
+          category="Creature"
+          fields={["name", "mod_name", "entity_id", "blueprint"]}
+          onSubmit={handleSubmit}
+        />
+      </CollapsibleCard>
 
       <Card>
         <CardBody>
