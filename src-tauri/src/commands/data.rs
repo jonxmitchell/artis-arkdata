@@ -1,38 +1,44 @@
 use crate::types::ArkData;
 use std::fs;
-use tauri::api::path;
+use std::path::PathBuf;
+use tauri::{AppHandle, Runtime};
+
+fn get_data_file_path<R: Runtime>(app: &AppHandle<R>) -> PathBuf {
+    // Get the app data directory
+    let app_dir = app
+        .path_resolver()
+        .resolve_resource("arkdata")
+        .expect("failed to get app data directory");
+
+    // Create the directory if it doesn't exist
+    fs::create_dir_all(&app_dir).expect("failed to create app data directory");
+
+    // Return the full path to arkdata.json
+    app_dir.join("ArkData.json")
+}
 
 #[tauri::command]
-pub async fn load_ark_data() -> Result<ArkData, String> {
-    let app_dir = path::app_data_dir(&tauri::Config::default())
-        .ok_or_else(|| "Failed to get app directory".to_string())?;
-    let data_path = app_dir.join("arkdata.json");
+pub async fn load_ark_data<R: Runtime>(app: AppHandle<R>) -> Result<ArkData, String> {
+    let data_path = get_data_file_path(&app);
 
     if !data_path.exists() {
         return Ok(ArkData::default());
     }
 
     let data =
-        fs::read_to_string(data_path).map_err(|e| format!("Failed to read data file: {}", e))?;
+        fs::read_to_string(&data_path).map_err(|e| format!("Failed to read data file: {}", e))?;
 
     serde_json::from_str(&data).map_err(|e| format!("Failed to parse JSON: {}", e))
 }
 
 #[tauri::command]
-pub async fn save_ark_data(data: ArkData) -> Result<(), String> {
-    let app_dir = path::app_data_dir(&tauri::Config::default())
-        .ok_or_else(|| "Failed to get app directory".to_string())?;
+pub async fn save_ark_data<R: Runtime>(app: AppHandle<R>, data: ArkData) -> Result<(), String> {
+    let data_path = get_data_file_path(&app);
 
-    if !app_dir.exists() {
-        fs::create_dir_all(&app_dir)
-            .map_err(|e| format!("Failed to create app directory: {}", e))?;
-    }
-
-    let data_path = app_dir.join("arkdata.json");
     let json = serde_json::to_string_pretty(&data)
         .map_err(|e| format!("Failed to serialize data: {}", e))?;
 
-    fs::write(data_path, json).map_err(|e| format!("Failed to write data file: {}", e))
+    fs::write(&data_path, json).map_err(|e| format!("Failed to write data file: {}", e))
 }
 
 #[tauri::command]
