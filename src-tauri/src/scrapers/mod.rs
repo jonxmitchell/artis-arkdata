@@ -1,4 +1,5 @@
 pub mod beacons;
+pub mod colors;
 pub mod common;
 pub mod creatures;
 pub mod engrams;
@@ -26,6 +27,7 @@ pub async fn scrape_all(
         ("items", "Starting item scraping..."),
         ("engrams", "Starting engram scraping..."),
         ("beacons", "Starting beacon scraping..."),
+        ("colors", "Starting color scraping..."),
     ];
 
     let total_stages = stages.len() as f32;
@@ -42,6 +44,7 @@ pub async fn scrape_all(
             "items" => items::scrape_items(&window, &mut ark_data.items).await?,
             "engrams" => engrams::scrape_engrams(&window, &mut ark_data.engrams).await?,
             "beacons" => beacons::scrape_beacons(&window, &mut ark_data.beacons).await?,
+            "colors" => colors::scrape_colors(&window, &mut ark_data.colors).await?,
             _ => {}
         }
 
