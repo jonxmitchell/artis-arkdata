@@ -47,6 +47,7 @@ export default function Home() {
             onSelectionChange={setSelected}
             aria-label="Data Categories"
             className="w-full"
+            fullWidth={true}
           >
             <Tab key="creatures" title="Creatures">
               <CreaturesTab />
