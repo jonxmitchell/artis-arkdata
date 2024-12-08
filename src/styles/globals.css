@@ -25,3 +25,21 @@ body {
     text-wrap: balance;
   }
 }
+
+::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+	background-color: rgba(155, 155, 155, 0.5);
+	border-radius: 3px;
+}
+
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-ms-reveal {
+	display: none;
+}

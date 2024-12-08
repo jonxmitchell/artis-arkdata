@@ -16,6 +16,7 @@ fn main() {
             save_ark_data,
             export_data,
             import_data,
+            create_backup,
             // Scraping commands
             start_scraping,
             merge_scraped_data,

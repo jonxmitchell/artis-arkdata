@@ -57,21 +57,9 @@ export const importData = async () => {
 
 export const createBackup = async (data) => {
   try {
-    const date = new Date().toISOString().split('T')[0];
-    const filePath = await save({
-      filters: [{
-        name: 'JSON',
-        extensions: ['json']
-      }],
-      defaultPath: `arkdata-backup-${date}.json`
-    });
-
-    if (filePath) {
-      const jsonString = JSON.stringify(data, null, 2);
-      await writeTextFile(filePath, jsonString);
-      return true;
-    }
-    return false;
+    // Use the new Rust command to create a backup
+    const backupFileName = await invoke('create_backup', { data });
+    return backupFileName;
   } catch (error) {
     console.error('Backup failed:', error);
     throw new Error(`Backup failed: ${error.message}`);
