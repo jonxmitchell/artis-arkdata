@@ -14,7 +14,6 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
-  useDisclosure,
 } from "@nextui-org/react";
 import {
   Database,
@@ -26,36 +25,10 @@ import {
   Download,
   Upload,
   Archive,
-  CheckCircle2,
-  XCircle,
 } from "lucide-react";
-import { invoke } from "@tauri-apps/api/tauri";
-import { writeTextFile, readTextFile } from "@tauri-apps/api/fs";
-import { save, open } from "@tauri-apps/api/dialog";
+import { createBackup } from "@/utils/dataUtils";
 import useArkStore from "@/store/arkStore";
 import DataComparison from "./DataComparison";
-
-// Toast Component
-const Toast = ({ isOpen, onClose, message, type = "success" }) => {
-  if (!isOpen) return null;
-
-  const backgroundColor =
-    type === "success" ? "bg-success-500" : "bg-danger-500";
-  const Icon = type === "success" ? CheckCircle2 : XCircle;
-
-  setTimeout(onClose, 3000); // Auto close after 3 seconds
-
-  return (
-    <div className="fixed bottom-4 right-4 z-50 animate-fade-in">
-      <div
-        className={`${backgroundColor} text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2`}
-      >
-        <Icon className="w-5 h-5" />
-        <span>{message}</span>
-      </div>
-    </div>
-  );
-};
 
 const Header = () => {
   const {
@@ -81,29 +54,17 @@ const Header = () => {
     handleChangeReject,
   } = useArkStore();
 
-  const [toast, setToast] = useState({
-    isOpen: false,
-    message: "",
-    type: "success",
-  });
-
-  const showToast = (message, type = "success") => {
-    setToast({ isOpen: true, message, type });
-  };
-
-  const closeToast = () => {
-    setToast((prev) => ({ ...prev, isOpen: false }));
-  };
-
   const handleUpdate = async () => {
     try {
+      // Create backup before starting the scraping process
+      await createBackup(arkData);
+
       const scrapedData = await startScraping();
       if (scrapedData) {
         startComparison(scrapedData);
       }
     } catch (error) {
-      console.error("Scraping failed:", error);
-      showToast("Failed to update data", "error");
+      console.error("Update process failed:", error);
     }
   };
 
@@ -121,11 +82,9 @@ const Header = () => {
       if (filePath) {
         const jsonString = JSON.stringify(arkData, null, 2);
         await writeTextFile(filePath, jsonString);
-        showToast("Data exported successfully");
       }
     } catch (error) {
       console.error("Export failed:", error);
-      showToast("Failed to export data", "error");
     }
   };
 
@@ -147,17 +106,6 @@ const Header = () => {
       }
     } catch (error) {
       console.error("Import failed:", error);
-      showToast("Failed to import data", "error");
-    }
-  };
-
-  const handleBackup = async () => {
-    try {
-      const backupFileName = await invoke("create_backup", { data: arkData });
-      showToast(`Backup created: ${backupFileName}`);
-    } catch (error) {
-      console.error("Backup failed:", error);
-      showToast("Failed to create backup", "error");
     }
   };
 
@@ -171,7 +119,6 @@ const Header = () => {
     <>
       <Card>
         <CardBody>
-          {/* Existing card content */}
           <div className="flex flex-col gap-4">
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
@@ -236,7 +183,7 @@ const Header = () => {
                     <DropdownItem
                       key="backup"
                       startContent={<Archive className="w-4 h-4" />}
-                      onClick={handleBackup}
+                      onClick={() => createBackup(arkData)}
                     >
                       Create Backup
                     </DropdownItem>
@@ -290,7 +237,6 @@ const Header = () => {
         </CardBody>
       </Card>
 
-      {/* Modals */}
       <Modal
         isOpen={showComparison}
         onClose={cancelComparison}
@@ -317,14 +263,6 @@ const Header = () => {
           </ModalFooter>
         </ModalContent>
       </Modal>
-
-      {/* Toast Notification */}
-      <Toast
-        isOpen={toast.isOpen}
-        onClose={closeToast}
-        message={toast.message}
-        type={toast.type}
-      />
     </>
   );
 };
