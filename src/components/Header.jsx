@@ -26,7 +26,7 @@ import {
   Upload,
   Archive,
 } from "lucide-react";
-import { createBackup } from "@/utils/dataUtils";
+import { createBackup, exportData } from "@/utils/dataUtils";
 import useArkStore from "@/store/arkStore";
 import DataComparison from "./DataComparison";
 
@@ -70,19 +70,7 @@ const Header = () => {
 
   const handleExport = async () => {
     try {
-      const filePath = await save({
-        filters: [
-          {
-            name: "JSON",
-            extensions: ["json"],
-          },
-        ],
-      });
-
-      if (filePath) {
-        const jsonString = JSON.stringify(arkData, null, 2);
-        await writeTextFile(filePath, jsonString);
-      }
+      await exportData(arkData);
     } catch (error) {
       console.error("Export failed:", error);
     }
