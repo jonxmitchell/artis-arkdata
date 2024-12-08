@@ -51,6 +51,8 @@ const Header = () => {
     lastAction,
     unsavedChanges,
     lastSaved,
+    handleChangeAccept,
+    handleChangeReject,
   } = useArkStore();
 
   const handleUpdate = async () => {
@@ -264,7 +266,12 @@ const Header = () => {
         <ModalContent>
           <ModalHeader>Review Changes</ModalHeader>
           <ModalBody>
-            <DataComparison oldData={arkData} newData={compareData} />
+            <DataComparison
+              oldData={arkData}
+              newData={compareData}
+              onAcceptChange={handleChangeAccept}
+              onRejectChange={handleChangeReject}
+            />{" "}
           </ModalBody>
           <ModalFooter>
             <Button color="danger" variant="flat" onPress={cancelComparison}>

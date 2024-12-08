@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
+import { compareData } from '@/utils/compareData';
+
 
 const MAX_HISTORY_ENTRIES = 50;
 
@@ -35,6 +37,13 @@ const useArkStore = create((set, get) => ({
   // Comparison state
   compareData: null,
   showComparison: false,
+  pendingChanges: {
+    creatures: { accept: new Set(), reject: new Set() },
+    items: { accept: new Set(), reject: new Set() },
+    engrams: { accept: new Set(), reject: new Set() },
+    beacons: { accept: new Set(), reject: new Set() },
+    colors: { accept: new Set(), reject: new Set() }
+  },
 
   // Initialize scraping progress listener
   initScrapingListener: async () => {
@@ -166,6 +175,25 @@ const useArkStore = create((set, get) => ({
     pushToHistory(`Update ${category} entry: ${key}`);
   },
 
+  // Handle change acceptance/rejection
+  handleChangeAccept: (category, type, key) => {
+    set(state => {
+      const newPendingChanges = { ...state.pendingChanges };
+      newPendingChanges[category].accept.add(key);
+      newPendingChanges[category].reject.delete(key);
+      return { pendingChanges: newPendingChanges };
+    });
+  },
+
+  handleChangeReject: (category, type, key) => {
+    set(state => {
+      const newPendingChanges = { ...state.pendingChanges };
+      newPendingChanges[category].reject.add(key);
+      newPendingChanges[category].accept.delete(key);
+      return { pendingChanges: newPendingChanges };
+    });
+  },
+
   // Data loading and saving
   loadData: async () => {
     try {
@@ -240,7 +268,7 @@ const useArkStore = create((set, get) => ({
         }
       });
   
-      return scrapedData; // Return the scraped data instead of automatically merging
+      return scrapedData;
   
     } catch (error) {
       set({ 
@@ -259,30 +287,111 @@ const useArkStore = create((set, get) => ({
   // Comparison operations
   startComparison: (newData) => {
     const { arkData } = get();
+    
+    // Initialize pendingChanges with defaults
+    const pendingChanges = {
+      creatures: { accept: new Set(), reject: new Set() },
+      items: { accept: new Set(), reject: new Set() },
+      engrams: { accept: new Set(), reject: new Set() },
+      beacons: { accept: new Set(), reject: new Set() },
+      colors: { accept: new Set(), reject: new Set() }
+    };
+  
+    // For each category, set defaults based on change type
+    Object.keys(newData).forEach(category => {
+      const oldCategoryData = arkData[category] || {};
+      const newCategoryData = newData[category] || {};
+      const comparison = compareData(oldCategoryData, newCategoryData);
+      
+      // Modifications default to accept
+      Object.keys(comparison.modified).forEach(key => {
+        pendingChanges[category].accept.add(key);
+      });
+      
+      // Additions default to accept
+      Object.keys(comparison.added).forEach(key => {
+        pendingChanges[category].accept.add(key);
+      });
+      
+      // Removals default to reject (keep items unless explicitly accepted for removal)
+      Object.keys(comparison.removed).forEach(key => {
+        pendingChanges[category].reject.add(key);
+      });
+    });
+  
     set({ 
       compareData: newData,
-      showComparison: true 
+      showComparison: true,
+      pendingChanges
     });
   },
 
   cancelComparison: () => {
     set({ 
       compareData: null,
-      showComparison: false 
+      showComparison: false,
+      pendingChanges: {
+        creatures: { accept: new Set(), reject: new Set() },
+        items: { accept: new Set(), reject: new Set() },
+        engrams: { accept: new Set(), reject: new Set() },
+        beacons: { accept: new Set(), reject: new Set() },
+        colors: { accept: new Set(), reject: new Set() }
+      }
     });
   },
 
   applyComparison: () => {
-    const { compareData, pushToHistory } = get();
+    const { compareData, pendingChanges, pushToHistory } = get();
     if (!compareData) return;
 
-    set(state => ({
-      arkData: compareData,
-      compareData: null,
-      showComparison: false
-    }));
+    set(state => {
+      const newData = { ...state.arkData };
 
-    pushToHistory('Applied data comparison changes');
+      // Process each category
+      Object.keys(compareData).forEach(category => {
+        const categoryPending = pendingChanges[category];
+
+        // Handle additions
+        Object.entries(compareData[category]).forEach(([key, item]) => {
+          if (!state.arkData[category][key]) {
+            // This is a new item
+            if (categoryPending.accept.has(key)) {
+              newData[category][key] = item;
+            }
+          } else if (JSON.stringify(state.arkData[category][key]) !== JSON.stringify(item)) {
+            // This is a modified item
+            if (categoryPending.accept.has(key)) {
+              newData[category][key] = item;
+            } else if (!categoryPending.reject.has(key)) {
+              // If neither accepted nor rejected, keep the old version
+              newData[category][key] = state.arkData[category][key];
+            }
+          }
+        });
+
+        // Handle removals (only if explicitly accepted)
+        Object.keys(state.arkData[category]).forEach(key => {
+          if (!compareData[category][key] && categoryPending.accept.has(key)) {
+            delete newData[category][key];
+          }
+        });
+      });
+
+      return {
+        arkData: newData,
+        compareData: null,
+        showComparison: false,
+        pendingChanges: {
+          creatures: { accept: new Set(), reject: new Set() },
+          items: { accept: new Set(), reject: new Set() },
+          engrams: { accept: new Set(), reject: new Set() },
+          beacons: { accept: new Set(), reject: new Set() },
+          colors: { accept: new Set(), reject: new Set() }
+        }
+      };
+    });
+
+    pushToHistory('Applied selective data comparison changes');
   },
 
   // Bulk operations

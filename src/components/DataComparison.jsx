@@ -7,19 +7,19 @@ import {
   Tab,
   Chip,
   Input,
+  Button,
 } from "@nextui-org/react";
-import {
-  Plus,
-  Minus,
-  RefreshCw,
-  ChevronRight,
-  ChevronDown,
-  Search,
-} from "lucide-react";
+import { Search, Plus, Minus, RefreshCw, Check, X } from "lucide-react";
 import { compareData, getChangeStats } from "@/utils/compareData";
+import useArkStore from "@/store/arkStore";
 
-const ChangeDisplay = ({ type, item, changes }) => {
+const ChangeDisplay = ({ category, type, id, item, changes }) => {
+  const { pendingChanges, handleChangeAccept, handleChangeReject } =
+    useArkStore();
   const [expanded, setExpanded] = useState(false);
+
+  const isAccepted = pendingChanges[category].accept.has(id);
+  const isRejected = pendingChanges[category].reject.has(id);
 
   const getIcon = () => {
     switch (type) {
@@ -34,14 +34,84 @@ const ChangeDisplay = ({ type, item, changes }) => {
     }
   };
 
+  const getStatusBadge = () => {
+    if (type === "added") {
+      if (isAccepted) {
+        return (
+          <Chip color="success" size="sm">
+            Will Be Added
+          </Chip>
+        );
+      }
+      if (isRejected) {
+        return (
+          <Chip color="danger" size="sm">
+            Will Not Add
+          </Chip>
+        );
+      }
+      return (
+        <Chip variant="flat" size="sm">
+          Skip Adding
+        </Chip>
+      ); // Default for new items
+    }
+
+    if (type === "removed") {
+      if (isAccepted) {
+        return (
+          <Chip color="danger" size="sm">
+            Will Be Deleted
+          </Chip>
+        );
+      }
+      if (isRejected) {
+        return (
+          <Chip color="success" size="sm">
+            Will Keep
+          </Chip>
+        );
+      }
+      return (
+        <Chip variant="flat" size="sm">
+          Will Keep
+        </Chip>
+      ); // Default for removals
+    }
+
+    if (type === "modified") {
+      if (isAccepted) {
+        return (
+          <Chip color="success" size="sm">
+            Will Update
+          </Chip>
+        );
+      }
+      if (isRejected) {
+        return (
+          <Chip color="warning" size="sm">
+            Keep Original
+          </Chip>
+        );
+      }
+      return (
+        <Chip variant="flat" size="sm">
+          Will Update
+        </Chip>
+      ); // Default for modifications
+    }
+  };
+
   const getBackgroundColor = () => {
+    if (isAccepted) return "bg-success-50";
+    if (isRejected) return "bg-danger-50";
     switch (type) {
       case "added":
-        return "bg-success-50";
+        return "bg-success-100/50";
       case "removed":
-        return "bg-danger-50";
+        return "bg-danger-100/50";
       case "modified":
-        return "bg-warning-50";
+        return "bg-warning-100/50";
       default:
         return "";
     }
@@ -55,19 +125,37 @@ const ChangeDisplay = ({ type, item, changes }) => {
             <div className="flex items-center gap-2">
               {getIcon()}
               <span className="font-bold">{item.name}</span>
+              {getStatusBadge()}
             </div>
-            {changes && (
-              <button
-                className="p-1 hover:bg-default-100 rounded-full"
-                onClick={() => setExpanded(!expanded)}
+            <div className="flex gap-2">
+              <Button
+                isIconOnly
+                size="sm"
+                color="success"
+                variant={isAccepted ? "solid" : "flat"}
+                onClick={() => handleChangeAccept(category, type, id)}
               >
-                {expanded ? (
-                  <ChevronDown className="w-4 h-4" />
-                ) : (
-                  <ChevronRight className="w-4 h-4" />
-                )}
-              </button>
-            )}
+                <Check className="w-4 h-4" />
+              </Button>
+              <Button
+                isIconOnly
+                size="sm"
+                color="danger"
+                variant={isRejected ? "solid" : "flat"}
+                onClick={() => handleChangeReject(category, type, id)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+              {changes && (
+                <Button
+                  size="sm"
+                  variant="light"
+                  onClick={() => setExpanded(!expanded)}
+                >
+                  {expanded ? "Hide Details" : "Show Details"}
+                </Button>
+              )}
+            </div>
           </div>
           {expanded && changes && (
             <div className="ml-6 flex flex-col gap-1">
@@ -96,7 +184,7 @@ const ChangeDisplay = ({ type, item, changes }) => {
   );
 };
 
-const DataComparison = ({ oldData, newData }) => {
+export default function DataComparison({ oldData, newData }) {
   const [selectedCategory, setSelectedCategory] = useState("creatures");
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilters, setActiveFilters] = useState({
@@ -130,73 +218,65 @@ const DataComparison = ({ oldData, newData }) => {
     [comparison]
   );
 
-  const toggleFilter = (filterType) => {
-    setActiveFilters((prev) => ({
-      ...prev,
-      [filterType]: !prev[filterType],
-    }));
-  };
-
-  const filterAndSearchChanges = (changes, type) => {
-    return Object.entries(changes).filter(([key, item]) => {
-      const searchMatch =
-        searchQuery.toLowerCase() === "" ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (item.blueprint &&
-          item.blueprint.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (item.class_name &&
-          item.class_name.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      return searchMatch && activeFilters[type];
-    });
-  };
-
   const renderCategoryContent = (category) => {
     const categoryChanges = comparison[category];
 
-    const addedItems = filterAndSearchChanges(categoryChanges.added, "added");
-    const modifiedItems = filterAndSearchChanges(
-      categoryChanges.modified,
-      "modified"
-    );
-    const removedItems = filterAndSearchChanges(
-      categoryChanges.removed,
-      "removed"
+    const addedItems = Object.entries(categoryChanges.added).filter(
+      ([key, item]) => {
+        const searchMatch =
+          searchQuery.toLowerCase() === "" ||
+          item.name.toLowerCase().includes(searchQuery.toLowerCase());
+        return searchMatch && activeFilters.added;
+      }
     );
 
-    const noResults =
-      addedItems.length === 0 &&
-      modifiedItems.length === 0 &&
-      removedItems.length === 0;
-    const noActiveFilters = !Object.values(activeFilters).some((v) => v);
+    const modifiedItems = Object.entries(categoryChanges.modified).filter(
+      ([key, item]) => {
+        const searchMatch =
+          searchQuery.toLowerCase() === "" ||
+          item.new.name.toLowerCase().includes(searchQuery.toLowerCase());
+        return searchMatch && activeFilters.modified;
+      }
+    );
 
-    if (noResults || noActiveFilters) {
-      return (
-        <div className="text-center p-4 text-gray-500">
-          {noActiveFilters
-            ? "No filters selected"
-            : searchQuery
-            ? "No results match your search"
-            : "No changes found"}
-        </div>
-      );
-    }
+    const removedItems = Object.entries(categoryChanges.removed).filter(
+      ([key, item]) => {
+        const searchMatch =
+          searchQuery.toLowerCase() === "" ||
+          item.name.toLowerCase().includes(searchQuery.toLowerCase());
+        return searchMatch && activeFilters.removed;
+      }
+    );
 
     return (
       <div className="flex flex-col gap-2">
         {addedItems.map(([key, item]) => (
-          <ChangeDisplay key={`added-${key}`} type="added" item={item} />
+          <ChangeDisplay
+            key={`added-${key}`}
+            category={category}
+            type="added"
+            id={key}
+            item={item}
+          />
         ))}
         {modifiedItems.map(([key, item]) => (
           <ChangeDisplay
             key={`modified-${key}`}
+            category={category}
             type="modified"
+            id={key}
             item={item.new}
             changes={item.changes}
           />
         ))}
         {removedItems.map(([key, item]) => (
-          <ChangeDisplay key={`removed-${key}`} type="removed" item={item} />
+          <ChangeDisplay
+            key={`removed-${key}`}
+            category={category}
+            type="removed"
+            id={key}
+            item={item}
+          />
         ))}
       </div>
     );
@@ -209,12 +289,9 @@ const DataComparison = ({ oldData, newData }) => {
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold">Data Comparison</h3>
             <Input
-              classNames={{
-                base: "w-full sm:max-w-[44%]",
-                input: "text-small",
-              }}
-              placeholder="Search by name, blueprint, or class name..."
-              startContent={<Search className="w-4 h-4 text-default-400" />}
+              className="w-full sm:max-w-[44%]"
+              placeholder="Search changes..."
+              startContent={<Search className="w-4 h-4" />}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -224,7 +301,9 @@ const DataComparison = ({ oldData, newData }) => {
               color="success"
               variant={activeFilters.added ? "solid" : "flat"}
               className="cursor-pointer"
-              onClick={() => toggleFilter("added")}
+              onClick={() =>
+                setActiveFilters((prev) => ({ ...prev, added: !prev.added }))
+              }
             >
               Added: {stats[selectedCategory].added}
             </Chip>
@@ -232,7 +311,12 @@ const DataComparison = ({ oldData, newData }) => {
               color="danger"
               variant={activeFilters.removed ? "solid" : "flat"}
               className="cursor-pointer"
-              onClick={() => toggleFilter("removed")}
+              onClick={() =>
+                setActiveFilters((prev) => ({
+                  ...prev,
+                  removed: !prev.removed,
+                }))
+              }
             >
               Removed: {stats[selectedCategory].removed}
             </Chip>
@@ -240,7 +324,12 @@ const DataComparison = ({ oldData, newData }) => {
               color="warning"
               variant={activeFilters.modified ? "solid" : "flat"}
               className="cursor-pointer"
-              onClick={() => toggleFilter("modified")}
+              onClick={() =>
+                setActiveFilters((prev) => ({
+                  ...prev,
+                  modified: !prev.modified,
+                }))
+              }
             >
               Modified: {stats[selectedCategory].modified}
             </Chip>
@@ -277,6 +366,4 @@ const DataComparison = ({ oldData, newData }) => {
       </CardBody>
     </Card>
   );
-};
-
-export default DataComparison;
+}
