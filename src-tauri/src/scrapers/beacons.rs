@@ -65,18 +65,35 @@ pub async fn scrape_beacons(
                 let name = clean_name(&cells[0].text().collect::<String>());
 
                 if !should_skip_beacon(&name) {
-                    let class_name = clean_name(&cells[1].text().collect::<String>());
-                    let key = name.replace(" ", "_");
+                    // Split class names by <br> tag or newline
+                    let html_content = cells[1].inner_html();
+                    let class_names: Vec<String> = html_content
+                        .split(|c| c == '\n' || c == '<')
+                        .filter(|s| s.contains("_C"))
+                        .map(|s| clean_name(s))
+                        .collect();
 
-                    beacons.insert(
-                        key,
-                        Beacon {
-                            type_name: "beacon".to_string(),
-                            name,
-                            mod_name: current_mod.clone(),
-                            class_name,
-                        },
-                    );
+                    for (idx, class_name) in class_names.iter().enumerate() {
+                        let suffix = if idx > 0 { " (Double)" } else { "" };
+                        let display_name = format!("{}{}", name, suffix);
+
+                        // Create key with mod name prefix
+                        let key = format!(
+                            "{}_{}",
+                            current_mod.replace(" ", "_"),
+                            display_name.replace(" ", "_")
+                        );
+
+                        beacons.insert(
+                            key,
+                            Beacon {
+                                type_name: "beacon".to_string(),
+                                name: display_name,
+                                mod_name: current_mod.clone(),
+                                class_name: class_name.to_string(),
+                            },
+                        );
+                    }
                 }
             }
         }
