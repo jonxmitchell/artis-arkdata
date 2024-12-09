@@ -19,6 +19,8 @@ pub async fn scrape_all(
         engrams: HashMap::new(),
         beacons: HashMap::new(),
         colors: HashMap::new(),
+        version: "1.0.0".to_string(),
+        last_updated: chrono::Utc::now().timestamp(),
     };
 
     // Track progress stages

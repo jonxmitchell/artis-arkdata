@@ -13,6 +13,8 @@ const useArkStore = create((set, get) => ({
     engrams: {},
     beacons: {},
     colors: {},
+    version: "1.0.0",
+    last_updated: Date.now()
   },
   currentVersion: 1,
   lastSaved: null,
@@ -46,9 +48,8 @@ const useArkStore = create((set, get) => ({
 
   // Initialize scraping progress listener
   initScrapingListener: async () => {
-    // Ensure we only initialize the listener once
     if (get().listenerInitialized) return;
-  
+    
     await listen('scraping-progress', (event) => {
       const progress = event.payload;
       set(state => ({
@@ -62,11 +63,57 @@ const useArkStore = create((set, get) => ({
     set({ listenerInitialized: true });
   },
 
-  // History management functions
+  // Version management
+  incrementMajorVersion: () => {
+    set(state => {
+      const [major, minor, patch] = state.arkData.version.split('.').map(Number);
+      const newData = {
+        ...state.arkData,
+        version: `${major + 1}.0.0`,
+        last_updated: Date.now()
+      };
+      return {
+        arkData: newData,
+        unsavedChanges: true
+      };
+    });
+  },
+
+  incrementMinorVersion: () => {
+    set(state => {
+      const [major, minor, patch] = state.arkData.version.split('.').map(Number);
+      const newData = {
+        ...state.arkData,
+        version: `${major}.${minor + 1}.0`,
+        last_updated: Date.now()
+      };
+      return {
+        arkData: newData,
+        unsavedChanges: true
+      };
+    });
+  },
+
+  incrementPatchVersion: () => {
+    set(state => {
+      const [major, minor, patch] = state.arkData.version.split('.').map(Number);
+      const newData = {
+        ...state.arkData,
+        version: `${major}.${minor}.${patch + 1}`,
+        last_updated: Date.now()
+      };
+      return {
+        arkData: newData,
+        unsavedChanges: true
+      };
+    });
+  },
+
+  // History management
   pushToHistory: (description) => {
     set(state => {
       const newEntry = {
-        data: JSON.parse(JSON.stringify(state.arkData)), // Deep clone
+        data: JSON.parse(JSON.stringify(state.arkData)),
         version: state.currentVersion + 1,
         timestamp: Date.now(),
         description
@@ -99,7 +146,7 @@ const useArkStore = create((set, get) => ({
     return state.currentHistoryIndex < state.history.length - 1;
   },
 
-  undo: async () => {
+  undo: () => {
     if (!get().canUndo()) return;
 
     set(state => ({
@@ -110,7 +157,7 @@ const useArkStore = create((set, get) => ({
     }));
   },
 
-  redo: async () => {
+  redo: () => {
     if (!get().canRedo()) return;
 
     set(state => ({
@@ -122,86 +169,6 @@ const useArkStore = create((set, get) => ({
   },
 
   // Data operations
-  addEntry: (category, key, data) => {
-    const { pushToHistory } = get();
-    
-    set(state => ({
-      arkData: {
-        ...state.arkData,
-        [category]: {
-          ...state.arkData[category],
-          [key]: data,
-        },
-      },
-    }));
-
-    pushToHistory(`Add ${category} entry: ${key}`);
-  },
-
-  setArkData: (newData) => {
-    const { pushToHistory } = get();
-    set(state => ({
-      arkData: { ...newData },
-    }));
-    pushToHistory('Set new data');
-  },
-
-  removeEntry: (category, key) => {
-    const { pushToHistory } = get();
-    
-    set(state => {
-      const newCategory = { ...state.arkData[category] };
-      delete newCategory[key];
-      return {
-        arkData: {
-          ...state.arkData,
-          [category]: newCategory,
-        },
-      };
-    });
-
-    pushToHistory(`Remove ${category} entry: ${key}`);
-  },
-
-  updateEntry: (category, key, data) => {
-    const { pushToHistory } = get();
-    
-    set(state => ({
-      arkData: {
-        ...state.arkData,
-        [category]: {
-          ...state.arkData[category],
-          [key]: {
-            ...state.arkData[category][key],
-            ...data,
-          },
-        },
-      },
-    }));
-
-    pushToHistory(`Update ${category} entry: ${key}`);
-  },
-
-  // Handle change acceptance/rejection
-  handleChangeAccept: (category, type, key) => {
-    set(state => {
-      const newPendingChanges = { ...state.pendingChanges };
-      newPendingChanges[category].accept.add(key);
-      newPendingChanges[category].reject.delete(key);
-      return { pendingChanges: newPendingChanges };
-    });
-  },
-
-  handleChangeReject: (category, type, key) => {
-    set(state => {
-      const newPendingChanges = { ...state.pendingChanges };
-      newPendingChanges[category].reject.add(key);
-      newPendingChanges[category].accept.delete(key);
-      return { pendingChanges: newPendingChanges };
-    });
-  },
-
-  // Data loading and saving
   loadData: async () => {
     try {
       set({ loading: true, error: null });
@@ -229,14 +196,7 @@ const useArkStore = create((set, get) => ({
   saveData: async () => {
     try {
       set({ loading: true, error: null });
-      const state = get();
-      
-      await invoke('save_ark_data', { 
-        data: state.arkData,
-        version: state.currentVersion,
-        timestamp: Date.now()
-      });
-
+      await invoke('save_ark_data', { data: get().arkData });
       set({ 
         loading: false,
         lastSaved: Date.now(),
@@ -245,6 +205,40 @@ const useArkStore = create((set, get) => ({
     } catch (error) {
       set({ error: error.toString(), loading: false });
     }
+  },
+
+  // Entry management
+  addEntry: (category, key, data) => {
+    const { pushToHistory } = get();
+    
+    set(state => ({
+      arkData: {
+        ...state.arkData,
+        [category]: {
+          ...state.arkData[category],
+          [key]: data,
+        },
+      },
+    }));
+
+    pushToHistory(`Add ${category} entry: ${key}`);
+  },
+
+  removeEntry: (category, key) => {
+    const { pushToHistory } = get();
+    
+    set(state => {
+      const newCategory = { ...state.arkData[category] };
+      delete newCategory[key];
+      return {
+        arkData: {
+          ...state.arkData,
+          [category]: newCategory,
+        },
+      };
+    });
+
+    pushToHistory(`Remove ${category} entry: ${key}`);
   },
 
   // Scraping operations
@@ -259,11 +253,8 @@ const useArkStore = create((set, get) => ({
           message: 'Starting data collection...'
         }
       });
-  
-      // Initialize the progress listener if not already done
-      const { initScrapingListener } = get();
-      await initScrapingListener();
-  
+
+      await get().initScrapingListener();
       const scrapedData = await invoke('start_scraping');
       
       set({ 
@@ -276,7 +267,6 @@ const useArkStore = create((set, get) => ({
       });
   
       return scrapedData;
-  
     } catch (error) {
       set({ 
         error: error.toString(), 
@@ -295,7 +285,6 @@ const useArkStore = create((set, get) => ({
   startComparison: (newData) => {
     const { arkData } = get();
     
-    // Initialize pendingChanges with defaults
     const pendingChanges = {
       creatures: { accept: new Set(), reject: new Set() },
       items: { accept: new Set(), reject: new Set() },
@@ -304,23 +293,19 @@ const useArkStore = create((set, get) => ({
       colors: { accept: new Set(), reject: new Set() }
     };
   
-    // For each category, set defaults based on change type
     Object.keys(newData).forEach(category => {
       const oldCategoryData = arkData[category] || {};
       const newCategoryData = newData[category] || {};
       const comparison = compareData(oldCategoryData, newCategoryData);
       
-      // Modifications default to accept
       Object.keys(comparison.modified).forEach(key => {
         pendingChanges[category].accept.add(key);
       });
       
-      // Additions default to accept
       Object.keys(comparison.added).forEach(key => {
         pendingChanges[category].accept.add(key);
       });
       
-      // Removals default to reject (keep items unless explicitly accepted for removal)
       Object.keys(comparison.removed).forEach(key => {
         pendingChanges[category].reject.add(key);
       });
@@ -353,40 +338,55 @@ const useArkStore = create((set, get) => ({
 
     set(state => {
       const newData = { ...state.arkData };
-
-      // Process each category
+      
+      // Copy existing version and last_updated or set defaults
+      newData.version = state.arkData.version || "1.0.0";
+      newData.last_updated = state.arkData.last_updated || Math.floor(Date.now() / 1000);
+      
       Object.keys(compareData).forEach(category => {
-        newData[category] = { ...newData[category] }; // Create new reference for category
+        if (category === 'version' || category === 'last_updated') return;
+        
+        newData[category] = { ...newData[category] };
         const categoryPending = pendingChanges[category];
 
-        // Handle additions and modifications
         Object.entries(compareData[category]).forEach(([key, item]) => {
-          if (!state.arkData[category][key]) {
-            // This is a new item
+          if (!state.arkData[category]?.[key]) {
             if (categoryPending.accept.has(key)) {
               newData[category][key] = item;
             }
           } else if (JSON.stringify(state.arkData[category][key]) !== JSON.stringify(item)) {
-            // This is a modified item
             if (categoryPending.accept.has(key)) {
               newData[category][key] = item;
             } else if (!categoryPending.reject.has(key)) {
-              // If neither accepted nor rejected, keep the old version
               newData[category][key] = state.arkData[category][key];
             }
           } else {
-            // Unmodified item
             newData[category][key] = state.arkData[category][key];
           }
         });
 
-        // Handle removals (only if explicitly accepted)
-        Object.keys(state.arkData[category]).forEach(key => {
-          if (!compareData[category][key] && categoryPending.accept.has(key)) {
+        Object.keys(state.arkData[category] || {}).forEach(key => {
+          if (!compareData[category]?.[key] && categoryPending.accept.has(key)) {
             delete newData[category][key];
           }
         });
       });
+
+      // Safely increment patch version
+      if (newData.version) {
+        try {
+          const [major, minor, patch] = newData.version.split('.').map(Number);
+          if (!isNaN(major) && !isNaN(minor) && !isNaN(patch)) {
+            newData.version = `${major}.${minor}.${patch + 1}`;
+          }
+        } catch (error) {
+          console.warn('Failed to increment version number:', error);
+          // Keep existing version if increment fails
+        }
+      }
+
+      // Update timestamp
+      newData.last_updated = Math.floor(Date.now() / 1000);
 
       return {
         arkData: newData,
@@ -405,39 +405,24 @@ const useArkStore = create((set, get) => ({
     pushToHistory('Applied selective data comparison changes');
   },
 
-  // Bulk operations
-  bulkAddEntries: (category, entries) => {
-    const { pushToHistory } = get();
-    
-    set(state => ({
-      arkData: {
-        ...state.arkData,
-        [category]: {
-          ...state.arkData[category],
-          ...entries,
-        },
-      },
-    }));
-
-    pushToHistory(`Bulk add to ${category}: ${Object.keys(entries).length} entries`);
+  // Change handling
+  handleChangeAccept: (category, type, key) => {
+    set(state => {
+      const newPendingChanges = { ...state.pendingChanges };
+      newPendingChanges[category].accept.add(key);
+      newPendingChanges[category].reject.delete(key);
+      return { pendingChanges: newPendingChanges };
+    });
   },
 
-  bulkRemoveEntries: (category, keys) => {
-    const { pushToHistory } = get();
-    
+  handleChangeReject: (category, type, key) => {
     set(state => {
-      const newCategory = { ...state.arkData[category] };
-      keys.forEach(key => delete newCategory[key]);
-      return {
-        arkData: {
-          ...state.arkData, 
-          [category]: newCategory,
-        },
-      };
+      const newPendingChanges = { ...state.pendingChanges };
+      newPendingChanges[category].reject.add(key);
+      newPendingChanges[category].accept.delete(key);
+      return { pendingChanges: newPendingChanges };
     });
-
-    pushToHistory(`Bulk remove from ${category}: ${keys.length} entries`);
-  }
+  },
 }));
 
 export default useArkStore;

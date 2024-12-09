@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Button,
   ButtonGroup,
@@ -25,6 +25,7 @@ import {
   Download,
   Upload,
   Archive,
+  Tag,
 } from "lucide-react";
 import { createBackup, exportData, importData } from "@/utils/dataUtils";
 import useArkStore from "@/store/arkStore";
@@ -50,21 +51,47 @@ const Header = () => {
     lastAction,
     unsavedChanges,
     lastSaved,
-    handleChangeAccept,
-    handleChangeReject,
+    incrementMajorVersion,
+    incrementMinorVersion,
+    incrementPatchVersion,
   } = useArkStore();
+
+  const [showVersionModal, setShowVersionModal] = useState(false);
+  const [formattedLastSaved, setFormattedLastSaved] = useState("Never");
+  const [formattedLastUpdated, setFormattedLastUpdated] = useState("Never");
+
+  // Handle timestamp formatting on the client side only
+  useEffect(() => {
+    if (lastSaved) {
+      const date = new Date(lastSaved);
+      setFormattedLastSaved(date.toLocaleString());
+    }
+
+    if (arkData.last_updated) {
+      const date = new Date(arkData.last_updated * 1000); // Convert Unix timestamp to milliseconds
+      setFormattedLastUpdated(date.toLocaleString());
+    }
+  }, [lastSaved, arkData.last_updated]);
 
   const handleUpdate = async () => {
     try {
-      // Create backup before starting the scraping process
-      await createBackup(arkData);
+      // First try to create backup
+      console.log("Creating backup before update...");
+      const backupResult = await createBackup(arkData);
+      console.log("Backup created:", backupResult);
 
+      // Start scraping
+      console.log("Starting scraping process...");
       const scrapedData = await startScraping();
       if (scrapedData) {
+        // Ensure version and last_updated are properly set before comparison
+        scrapedData.version = arkData.version;
+        scrapedData.last_updated = Math.floor(Date.now() / 1000);
         startComparison(scrapedData);
       }
     } catch (error) {
       console.error("Update process failed:", error);
+      // Show error to user (you can use your preferred notification method)
     }
   };
 
@@ -80,6 +107,9 @@ const Header = () => {
     try {
       const importedData = await importData();
       if (importedData) {
+        // Ensure version and last_updated are properly set before comparison
+        importedData.version = arkData.version;
+        importedData.last_updated = Math.floor(Date.now() / 1000);
         startComparison(importedData);
       }
     } catch (error) {
@@ -87,10 +117,12 @@ const Header = () => {
     }
   };
 
-  const formatTimestamp = (timestamp) => {
-    if (!timestamp) return "Never";
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString();
+  const handleBackup = async () => {
+    try {
+      await createBackup(arkData);
+    } catch (error) {
+      console.error("Backup failed:", error);
+    }
   };
 
   return (
@@ -101,7 +133,22 @@ const Header = () => {
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <Database className="w-6 h-6" />
-                <h1 className="text-xl font-bold">ARK Data Manager</h1>
+                <div className="flex flex-col">
+                  <h1 className="text-xl font-bold">ARK Data Manager</h1>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-500">
+                      Version {arkData.version}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="light"
+                      startContent={<Tag className="w-4 h-4" />}
+                      onClick={() => setShowVersionModal(true)}
+                    >
+                      Update Version
+                    </Button>
+                  </div>
+                </div>
               </div>
 
               <div className="flex items-center gap-4">
@@ -161,7 +208,7 @@ const Header = () => {
                     <DropdownItem
                       key="backup"
                       startContent={<Archive className="w-4 h-4" />}
-                      onClick={() => createBackup(arkData)}
+                      onClick={handleBackup}
                     >
                       Create Backup
                     </DropdownItem>
@@ -204,9 +251,15 @@ const Header = () => {
               <div className="flex items-center gap-2">
                 {lastAction && `Last action: ${lastAction}`}
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4" />
-                Last saved: {formatTimestamp(lastSaved)}
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4" />
+                  Last saved: {formattedLastSaved}
+                </div>
+                <div className="flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4" />
+                  Last updated: {formattedLastUpdated}
+                </div>
               </div>
             </div>
 
@@ -215,6 +268,55 @@ const Header = () => {
         </CardBody>
       </Card>
 
+      {/* Version Update Modal */}
+      <Modal
+        isOpen={showVersionModal}
+        onClose={() => setShowVersionModal(false)}
+      >
+        <ModalContent>
+          <ModalHeader>Update Version</ModalHeader>
+          <ModalBody>
+            <div className="flex flex-col gap-4">
+              <Button
+                color="primary"
+                onClick={() => {
+                  incrementMajorVersion();
+                  setShowVersionModal(false);
+                }}
+              >
+                Increment Major Version (Breaking Changes)
+              </Button>
+              <Button
+                color="primary"
+                variant="bordered"
+                onClick={() => {
+                  incrementMinorVersion();
+                  setShowVersionModal(false);
+                }}
+              >
+                Increment Minor Version (New Features)
+              </Button>
+              <Button
+                color="primary"
+                variant="light"
+                onClick={() => {
+                  incrementPatchVersion();
+                  setShowVersionModal(false);
+                }}
+              >
+                Increment Patch Version (Bug Fixes)
+              </Button>
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button variant="light" onClick={() => setShowVersionModal(false)}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Data Comparison Modal */}
       <Modal
         isOpen={showComparison}
         onClose={cancelComparison}
@@ -224,15 +326,10 @@ const Header = () => {
         <ModalContent>
           <ModalHeader>Review Changes</ModalHeader>
           <ModalBody>
-            <DataComparison
-              oldData={arkData}
-              newData={compareData}
-              onAcceptChange={handleChangeAccept}
-              onRejectChange={handleChangeReject}
-            />
+            <DataComparison oldData={arkData} newData={compareData} />
           </ModalBody>
           <ModalFooter>
-            <Button color="danger" variant="flat" onPress={cancelComparison}>
+            <Button color="danger" variant="light" onPress={cancelComparison}>
               Cancel
             </Button>
             <Button color="primary" onPress={applyComparison}>

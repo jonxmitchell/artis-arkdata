@@ -8,6 +8,8 @@ pub struct ArkData {
     pub engrams: HashMap<String, Engram>,
     pub beacons: HashMap<String, Beacon>,
     pub colors: HashMap<String, Color>,
+    pub version: String,
+    pub last_updated: i64,
 }
 
 impl Default for ArkData {
@@ -18,6 +20,8 @@ impl Default for ArkData {
             engrams: HashMap::new(),
             beacons: HashMap::new(),
             colors: HashMap::new(),
+            version: "1.0.0".to_string(),
+            last_updated: chrono::Utc::now().timestamp(),
         }
     }
 }

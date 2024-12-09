@@ -1,5 +1,5 @@
 use crate::types::ArkData;
-use chrono::Local;
+use chrono::{Local, Utc};
 use std::fs;
 use std::path::PathBuf;
 use tauri::{AppHandle, Runtime};
@@ -41,12 +41,23 @@ pub async fn load_ark_data<R: Runtime>(app: AppHandle<R>) -> Result<ArkData, Str
     let data =
         fs::read_to_string(&data_path).map_err(|e| format!("Failed to read data file: {}", e))?;
 
-    serde_json::from_str(&data).map_err(|e| format!("Failed to parse JSON: {}", e))
+    let mut ark_data: ArkData =
+        serde_json::from_str(&data).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+
+    // Update timestamp if loading an older version without last_updated
+    if ark_data.last_updated == 0 {
+        ark_data.last_updated = Utc::now().timestamp();
+    }
+
+    Ok(ark_data)
 }
 
 #[tauri::command]
-pub async fn save_ark_data<R: Runtime>(app: AppHandle<R>, data: ArkData) -> Result<(), String> {
+pub async fn save_ark_data<R: Runtime>(app: AppHandle<R>, mut data: ArkData) -> Result<(), String> {
     let data_path = get_data_file_path(&app);
+
+    // Update the last_updated timestamp
+    data.last_updated = Utc::now().timestamp();
 
     let json = serde_json::to_string_pretty(&data)
         .map_err(|e| format!("Failed to serialize data: {}", e))?;
@@ -60,7 +71,7 @@ pub async fn create_backup<R: Runtime>(app: AppHandle<R>, data: ArkData) -> Resu
 
     // Generate timestamp for the filename
     let timestamp = Local::now().format("%Y%m%d_%H%M%S");
-    let filename = format!("arkdata_backup_{}.json", timestamp);
+    let filename = format!("arkdata_backup_v{}__{}.json", data.version, timestamp);
     let backup_path = backups_dir.join(&filename);
 
     let json = serde_json::to_string_pretty(&data)
@@ -84,5 +95,13 @@ pub async fn import_data(path: String) -> Result<ArkData, String> {
     let data =
         fs::read_to_string(path).map_err(|e| format!("Failed to read import file: {}", e))?;
 
-    serde_json::from_str(&data).map_err(|e| format!("Failed to parse import data: {}", e))
+    let mut ark_data: ArkData =
+        serde_json::from_str(&data).map_err(|e| format!("Failed to parse import data: {}", e))?;
+
+    // Ensure imported data has a timestamp
+    if ark_data.last_updated == 0 {
+        ark_data.last_updated = Utc::now().timestamp();
+    }
+
+    Ok(ark_data)
 }
