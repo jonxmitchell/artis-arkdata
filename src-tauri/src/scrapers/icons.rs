@@ -12,7 +12,7 @@ pub async fn scrape_icons(
     let app_handle = window.app_handle();
     let resource_path = app_handle
         .path_resolver()
-        .resolve_resource("icons.txt")
+        .resolve_resource("resources/icons.txt")
         .ok_or("Failed to find icons.txt resource")?;
 
     ScrapingProgress::new("icons", 0.0, "Starting icon data collection...").emit(window);
