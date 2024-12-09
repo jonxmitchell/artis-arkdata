@@ -7,7 +7,7 @@
 		"distDir": "../out"
 	},
 	"package": {
-		"productName": "tauri-nextjs-boilerplate",
+		"productName": "artis-arkdata-manager",
 		"version": "0.0.1"
 	},
 	"tauri": {
