@@ -1,3 +1,4 @@
+// src/components/DataTabs.jsx
 import React from "react";
 import { Tabs, Tab, Chip } from "@nextui-org/react";
 import CreaturesTab from "@/components/CreaturesTab";
@@ -5,6 +6,7 @@ import ItemsTab from "@/components/ItemsTab";
 import EngramsTab from "@/components/EngramsTab";
 import BeaconsTab from "@/components/BeaconsTab";
 import ColorsTab from "@/components/ColorsTab";
+import IconsTab from "@/components/IconsTab";
 
 const DataTabs = ({ arkData, selected, onSelectionChange }) => {
   const getCount = (category) => {
@@ -83,6 +85,19 @@ const DataTabs = ({ arkData, selected, onSelectionChange }) => {
         }
       >
         <ColorsTab />
+      </Tab>
+      <Tab
+        key="icons"
+        title={
+          <div className="flex items-center gap-2">
+            <span>Icons</span>
+            <Chip size="sm" variant="flat">
+              {getCount("icons")}
+            </Chip>
+          </div>
+        }
+      >
+        <IconsTab />
       </Tab>
     </Tabs>
   );

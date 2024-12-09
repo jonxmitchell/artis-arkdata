@@ -1,8 +1,10 @@
+// src-tauri/src/scrapers/mod.rs
 pub mod beacons;
 pub mod colors;
 pub mod common;
 pub mod creatures;
 pub mod engrams;
+pub mod icons; // Add this line
 pub mod items;
 pub mod progress;
 
@@ -19,6 +21,7 @@ pub async fn scrape_all(
         engrams: HashMap::new(),
         beacons: HashMap::new(),
         colors: HashMap::new(),
+        icons: HashMap::new(), // Add this line
         version: "1.0.0".to_string(),
         last_updated: chrono::Utc::now().timestamp(),
     };
@@ -30,6 +33,7 @@ pub async fn scrape_all(
         ("engrams", "Starting engram scraping..."),
         ("beacons", "Starting beacon scraping..."),
         ("colors", "Starting color scraping..."),
+        ("icons", "Starting icon scraping..."), // Add this line
     ];
 
     let total_stages = stages.len() as f32;
@@ -47,6 +51,7 @@ pub async fn scrape_all(
             "engrams" => engrams::scrape_engrams(&window, &mut ark_data.engrams).await?,
             "beacons" => beacons::scrape_beacons(&window, &mut ark_data.beacons).await?,
             "colors" => colors::scrape_colors(&window, &mut ark_data.colors).await?,
+            "icons" => icons::scrape_icons(&window, &mut ark_data.icons).await?, // Add this line
             _ => {}
         }
 

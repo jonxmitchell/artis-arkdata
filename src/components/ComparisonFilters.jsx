@@ -22,6 +22,7 @@ const ComparisonFilters = ({ category, onFilterChange }) => {
     engrams: ["name", "blueprint", "mod_name"],
     beacons: ["name", "class_name", "mod_name"],
     colors: ["name", "color_id", "hex_code"],
+    icons: ["name", "path"],
   };
 
   const handleFieldSelection = (keys) => {

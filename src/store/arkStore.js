@@ -1,3 +1,4 @@
+// src/store/arkStore.js
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/tauri';
 import { listen } from '@tauri-apps/api/event';
@@ -13,6 +14,7 @@ const useArkStore = create((set, get) => ({
     engrams: {},
     beacons: {},
     colors: {},
+    icons: {},
     version: "1.0.0",
     last_updated: Date.now()
   },
@@ -43,7 +45,8 @@ const useArkStore = create((set, get) => ({
     items: { accept: new Set(), reject: new Set() },
     engrams: { accept: new Set(), reject: new Set() },
     beacons: { accept: new Set(), reject: new Set() },
-    colors: { accept: new Set(), reject: new Set() }
+    colors: { accept: new Set(), reject: new Set() },
+    icons: { accept: new Set(), reject: new Set() }
   },
 
   // Initialize scraping progress listener
@@ -290,25 +293,30 @@ const useArkStore = create((set, get) => ({
       items: { accept: new Set(), reject: new Set() },
       engrams: { accept: new Set(), reject: new Set() },
       beacons: { accept: new Set(), reject: new Set() },
-      colors: { accept: new Set(), reject: new Set() }
+      colors: { accept: new Set(), reject: new Set() },
+      icons: { accept: new Set(), reject: new Set() }
     };
   
     Object.keys(newData).forEach(category => {
+      if (category === 'version' || category === 'last_updated') return;
+      
       const oldCategoryData = arkData[category] || {};
       const newCategoryData = newData[category] || {};
       const comparison = compareData(oldCategoryData, newCategoryData);
       
-      Object.keys(comparison.modified).forEach(key => {
-        pendingChanges[category].accept.add(key);
-      });
-      
-      Object.keys(comparison.added).forEach(key => {
-        pendingChanges[category].accept.add(key);
-      });
-      
-      Object.keys(comparison.removed).forEach(key => {
-        pendingChanges[category].reject.add(key);
-      });
+      if (pendingChanges[category]) {
+        Object.keys(comparison.modified).forEach(key => {
+          pendingChanges[category].accept.add(key);
+        });
+        
+        Object.keys(comparison.added).forEach(key => {
+          pendingChanges[category].accept.add(key);
+        });
+        
+        Object.keys(comparison.removed).forEach(key => {
+          pendingChanges[category].reject.add(key);
+        });
+      }
     });
   
     set({ 
@@ -327,7 +335,8 @@ const useArkStore = create((set, get) => ({
         items: { accept: new Set(), reject: new Set() },
         engrams: { accept: new Set(), reject: new Set() },
         beacons: { accept: new Set(), reject: new Set() },
-        colors: { accept: new Set(), reject: new Set() }
+        colors: { accept: new Set(), reject: new Set() },
+        icons: { accept: new Set(), reject: new Set() }
       }
     });
   },
@@ -381,7 +390,6 @@ const useArkStore = create((set, get) => ({
           }
         } catch (error) {
           console.warn('Failed to increment version number:', error);
-          // Keep existing version if increment fails
         }
       }
 
@@ -397,7 +405,8 @@ const useArkStore = create((set, get) => ({
           items: { accept: new Set(), reject: new Set() },
           engrams: { accept: new Set(), reject: new Set() },
           beacons: { accept: new Set(), reject: new Set() },
-          colors: { accept: new Set(), reject: new Set() }
+          colors: { accept: new Set(), reject: new Set() },
+          icons: { accept: new Set(), reject: new Set() }
         }
       };
     });

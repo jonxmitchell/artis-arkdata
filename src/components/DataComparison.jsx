@@ -54,7 +54,7 @@ const ChangeDisplay = ({ category, type, id, item, changes }) => {
         <Chip variant="flat" size="sm">
           Skip Adding
         </Chip>
-      ); // Default for new items
+      );
     }
 
     if (type === "removed") {
@@ -76,7 +76,7 @@ const ChangeDisplay = ({ category, type, id, item, changes }) => {
         <Chip variant="flat" size="sm">
           Will Keep
         </Chip>
-      ); // Default for removals
+      );
     }
 
     if (type === "modified") {
@@ -98,7 +98,7 @@ const ChangeDisplay = ({ category, type, id, item, changes }) => {
         <Chip variant="flat" size="sm">
           Will Update
         </Chip>
-      ); // Default for modifications
+      );
     }
   };
 
@@ -203,6 +203,7 @@ export default function DataComparison({ oldData, newData }) {
       engrams: compareData(oldData?.engrams || {}, newData?.engrams || {}),
       beacons: compareData(oldData?.beacons || {}, newData?.beacons || {}),
       colors: compareData(oldData?.colors || {}, newData?.colors || {}),
+      icons: compareData(oldData?.icons || {}, newData?.icons || {}),
     }),
     [oldData, newData]
   );
@@ -214,6 +215,7 @@ export default function DataComparison({ oldData, newData }) {
       engrams: getChangeStats(comparison.engrams),
       beacons: getChangeStats(comparison.beacons),
       colors: getChangeStats(comparison.colors),
+      icons: getChangeStats(comparison.icons),
     }),
     [comparison]
   );
@@ -347,6 +349,7 @@ export default function DataComparison({ oldData, newData }) {
             engrams: "Engrams",
             beacons: "Beacons",
             colors: "Colors",
+            icons: "Icons",
           }).map(([key, label]) => (
             <Tab
               key={key}

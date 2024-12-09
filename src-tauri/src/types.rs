@@ -8,22 +8,9 @@ pub struct ArkData {
     pub engrams: HashMap<String, Engram>,
     pub beacons: HashMap<String, Beacon>,
     pub colors: HashMap<String, Color>,
+    pub icons: HashMap<String, Icon>,
     pub version: String,
     pub last_updated: i64,
-}
-
-impl Default for ArkData {
-    fn default() -> Self {
-        Self {
-            creatures: HashMap::new(),
-            items: HashMap::new(),
-            engrams: HashMap::new(),
-            beacons: HashMap::new(),
-            colors: HashMap::new(),
-            version: "1.0.0".to_string(),
-            last_updated: chrono::Utc::now().timestamp(),
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -67,4 +54,26 @@ pub struct Color {
     pub name: String,
     pub color_id: i32,
     pub hex_code: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Icon {
+    pub type_name: String,
+    pub name: String,
+    pub path: String,
+}
+
+impl Default for ArkData {
+    fn default() -> Self {
+        Self {
+            creatures: HashMap::new(),
+            items: HashMap::new(),
+            engrams: HashMap::new(),
+            beacons: HashMap::new(),
+            colors: HashMap::new(),
+            icons: HashMap::new(),
+            version: "1.0.0".to_string(),
+            last_updated: chrono::Utc::now().timestamp(),
+        }
+    }
 }
