@@ -1,11 +1,11 @@
 [package]
-name = "app"
+name = "artis-arkdata-manager"
 version = "0.0.1"
-description = "A Tauri App"
+description = "A desktop application for managing Arkdata JSON database"
 authors = ["you"]
 license = ""
 repository = ""
-default-run = "app"
+default-run = "artis-arkdata-manager"
 edition = "2021"
 rust-version = "1.60"
 
